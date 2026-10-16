@@ -32,7 +32,9 @@ const schema = z
     SESSION_COOKIE_NAME: z.string().default('ebook_sid'),
     SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
 
-    EMAIL_TRANSPORT: z.enum(['smtp', 'console']).default('console'),
+    /** smtp: any SMTP provider. brevo: Brevo's HTTPS API (works where SMTP ports are blocked, e.g. Render free). */
+    EMAIL_TRANSPORT: z.enum(['smtp', 'brevo', 'console']).default('console'),
+    BREVO_API_KEY: optionalString,
     EMAIL_FROM: z.string().default('ReadnShare <no-reply@example.com>'),
     SMTP_HOST: optionalString,
     SMTP_PORT: z.coerce.number().int().positive().default(587),
@@ -75,6 +77,9 @@ const schema = z
     }
     if (env.EMAIL_TRANSPORT === 'console') {
       ctx.addIssue({ code: 'custom', path: ['EMAIL_TRANSPORT'], message: 'console transport is not allowed in production' });
+    }
+    if (env.EMAIL_TRANSPORT === 'brevo' && !env.BREVO_API_KEY) {
+      ctx.addIssue({ code: 'custom', path: ['BREVO_API_KEY'], message: 'BREVO_API_KEY is required when EMAIL_TRANSPORT=brevo' });
     }
     if (env.EMAIL_TRANSPORT === 'smtp' && !env.SMTP_HOST) {
       ctx.addIssue({ code: 'custom', path: ['SMTP_HOST'], message: 'SMTP_HOST is required' });

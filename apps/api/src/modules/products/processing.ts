@@ -67,9 +67,10 @@ async function processProduct(productId: string): Promise<void> {
   await ProductAsset.deleteMany({ sourceAssetId: source._id });
   await storage().deletePrefix(storageKeys.pageSet(productId, setId));
 
-  const original = await storage().getBuffer(source.storageKey);
+  // A standalone copy whose memory can be handed to the worker; the Buffer is released right after.
+  const pdfBytes = new Uint8Array(await storage().getBuffer(source.storageKey));
   const meta = await renderPdfPages(
-    new Uint8Array(original),
+    pdfBytes,
     env.PAGE_RENDER_WIDTH,
     async ({ page, png, width, height }) => {
       const webp = await pngToWebp(png);

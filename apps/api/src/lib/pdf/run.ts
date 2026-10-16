@@ -22,7 +22,8 @@ export function renderPdfPages(
   if (INLINE) return renderPdf(data, width, onPage, onMeta);
 
   return new Promise((resolve, reject) => {
-    const worker = new Worker(workerUrl, { workerData: { data, width } });
+    // Transfer (not copy) the PDF bytes so a large book is held in memory only once.
+    const worker = new Worker(workerUrl, { workerData: { data, width }, transferList: [data.buffer as ArrayBuffer] });
     let settled = false;
     const finish = (err: Error | null, meta?: RenderMeta) => {
       if (settled) return;
