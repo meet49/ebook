@@ -49,6 +49,8 @@ const productSchema = new Schema(
       error: { type: String, default: null },
       done: { type: Number, default: 0 },
       total: { type: Number, default: 0 },
+      /** Render attempts for the current upload; stops automatic retries looping on a bad file. */
+      attempts: { type: Number, default: 0 },
       updatedAt: Date,
     },
   },

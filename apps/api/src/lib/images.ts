@@ -1,4 +1,8 @@
 import sharp from 'sharp';
+
+// Small servers: no libvips operation cache, one thread. Throughput barely matters here.
+sharp.cache(false);
+sharp.concurrency(1);
 import { badRequest } from './errors';
 
 const COVER_FORMATS = new Set(['jpeg', 'png', 'webp']);
@@ -25,10 +29,6 @@ export async function processCover(input: Buffer): Promise<{ data: Buffer; width
     .webp({ quality: 85 })
     .toBuffer({ resolveWithObject: true });
   return { data, width: info.width, height: info.height };
-}
-
-export async function pngToWebp(png: Uint8Array): Promise<Buffer> {
-  return sharp(png).webp({ quality: 80 }).toBuffer();
 }
 
 function sampleOverlay(width: number, height: number, label: string): Buffer {

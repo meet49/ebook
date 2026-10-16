@@ -1,32 +1,48 @@
 /**
- * Worker thread entry: renders a PDF off the main event loop so API requests stay fast
- * while a book is processed. Protocol (worker -> parent):
- *   {type:'meta', meta} once, then {type:'page', page} per page (waits for an 'ack'),
- *   then {type:'done', meta} or {type:'error', message}.
+ * Child-process entry that renders one PDF, then exits. Running in a separate process (not a
+ * worker thread) means all native memory used by pdfjs/canvas is returned to the OS when the
+ * book is done, and if memory ever runs out the kernel kills this process instead of the API.
+ *
+ * Protocol over IPC (advanced serialization):
+ *   parent -> child: {type:'start', data, width}, then 'ack' after each page
+ *   child -> parent: {type:'meta', meta} once, {type:'page', page} per page,
+ *                    then {type:'done', meta} or {type:'error', message}
  */
-import { parentPort, workerData } from 'node:worker_threads';
 import { renderPdf } from '../lib/pdf/render';
 
-interface Input {
+interface StartMessage {
+  type: 'start';
   data: Uint8Array;
   width: number;
 }
 
-const port = parentPort!;
-const { data, width } = workerData as Input;
+const send = (msg: unknown) =>
+  new Promise<void>((resolve, reject) => process.send!(msg, undefined, {}, (err) => (err ? reject(err) : resolve())));
 
-function waitForAck(): Promise<void> {
-  return new Promise((resolve) => port.once('message', () => resolve()));
-}
+let ackWaiter: (() => void) | null = null;
 
-renderPdf(
-  data,
-  width,
-  async (page) => {
-    port.postMessage({ type: 'page', page }, [page.png.buffer as ArrayBuffer]);
-    await waitForAck();
-  },
-  (meta) => port.postMessage({ type: 'meta', meta }),
-)
-  .then((meta) => port.postMessage({ type: 'done', meta }))
-  .catch((err: unknown) => port.postMessage({ type: 'error', message: err instanceof Error ? err.message : String(err) }));
+process.on('message', (msg: StartMessage | 'ack') => {
+  if (msg === 'ack') {
+    ackWaiter?.();
+    ackWaiter = null;
+    return;
+  }
+  if (msg?.type !== 'start') return;
+
+  renderPdf(
+    msg.data,
+    msg.width,
+    async (page) => {
+      const acked = new Promise<void>((resolve) => (ackWaiter = resolve));
+      await send({ type: 'page', page });
+      await acked;
+    },
+    (meta) => send({ type: 'meta', meta }),
+  )
+    .then((meta) => send({ type: 'done', meta }))
+    .catch((err: unknown) => send({ type: 'error', message: err instanceof Error ? err.message : String(err) }))
+    .finally(() => process.exit(0));
+});
+
+// If the API goes away, don't linger.
+process.on('disconnect', () => process.exit(0));

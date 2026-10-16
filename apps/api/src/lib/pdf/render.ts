@@ -1,9 +1,12 @@
 import { createRequire } from 'node:module';
+import v8 from 'node:v8';
+import vm from 'node:vm';
 import path from 'node:path';
 
 export interface RenderedPage {
   page: number;
-  png: Uint8Array;
+  /** The page as a WebP image. */
+  webp: Uint8Array;
   width: number;
   height: number;
 }
@@ -14,6 +17,14 @@ export interface RenderMeta {
 }
 
 const require = createRequire(import.meta.url);
+
+/**
+ * Decoded page images are large ArrayBuffers that V8 frees lazily; on a 512 MB server that
+ * laziness alone can exhaust memory mid-book. Forcing a collection after each page keeps the
+ * peak close to a single page's working set.
+ */
+v8.setFlagsFromString('--expose-gc');
+const collectGarbage = vm.runInNewContext('gc') as (() => void) | undefined;
 const pdfjsRoot = path.dirname(require.resolve('pdfjs-dist/package.json'));
 // pdfjs needs these to render documents that rely on the 14 standard fonts or CJK encodings.
 // In Node it reads them with fs, so pass a plain path (not a file:// URL), with forward
@@ -21,6 +32,8 @@ const pdfjsRoot = path.dirname(require.resolve('pdfjs-dist/package.json'));
 const dataDir = (name: string) => path.join(pdfjsRoot, name).split(path.sep).join('/') + '/';
 const STANDARD_FONTS = dataDir('standard_fonts');
 const CMAPS = dataDir('cmaps');
+
+const WEBP_QUALITY = 80;
 
 /** Guards the server against absurdly long uploads. */
 const MAX_PAGES = 2000;
@@ -65,10 +78,13 @@ export async function renderPdf(
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvas: canvas as never, canvasContext: ctx as never, viewport }).promise;
-      // Copy into a standalone buffer so it can be transferred between threads.
-      const png = new Uint8Array(await canvas.encode('png'));
+      // Encode straight to WebP (no PNG intermediate); copy into a standalone, transferable buffer.
+      const webp = new Uint8Array(await canvas.encode('webp', WEBP_QUALITY));
+      const { width: w, height: h } = canvas;
       page.cleanup();
-      await onPage({ page: n, png, width: canvas.width, height: canvas.height });
+      await doc.cleanup();
+      collectGarbage?.();
+      await onPage({ page: n, webp, width: w, height: h });
     }
     return meta;
   } finally {

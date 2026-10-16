@@ -1,6 +1,5 @@
 import { Types } from 'mongoose';
 import { env } from '../../config/env';
-import { pngToWebp } from '../../lib/images';
 import { logger } from '../../lib/logger';
 import { renderPdfPages } from '../../lib/pdf/run';
 import { storage, storageKeys } from '../../lib/storage';
@@ -45,6 +44,9 @@ async function drain(): Promise<void> {
 function friendlyError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   if (/maximum is/.test(msg)) return msg;
+  if (/out of memory|SIGKILL|stopped unexpectedly/i.test(msg)) {
+    return 'This PDF needs more memory than the server has. Try a compressed PDF (smaller images), or upgrade the server plan.';
+  }
   if (/password/i.test(msg)) return 'This PDF is password-protected. Upload an unprotected file.';
   if (/Invalid PDF|corrupt|bad XRef|FormatError/i.test(msg)) return 'This file could not be read as a PDF. It may be damaged.';
   return 'Processing failed. Please try uploading the PDF again.';
@@ -60,7 +62,7 @@ async function processProduct(productId: string): Promise<void> {
   const started = Date.now();
   await Product.updateOne(
     { _id: product._id },
-    { $set: { 'processing.status': 'processing', 'processing.error': null, 'processing.done': 0, 'processing.updatedAt': new Date() } },
+    { $set: { 'processing.status': 'processing', 'processing.error': null, 'processing.done': 0, 'processing.updatedAt': new Date() }, $inc: { 'processing.attempts': 1 } },
   );
 
   // Clear partial output from an interrupted earlier attempt of this same upload.
@@ -72,8 +74,8 @@ async function processProduct(productId: string): Promise<void> {
   const meta = await renderPdfPages(
     pdfBytes,
     env.PAGE_RENDER_WIDTH,
-    async ({ page, png, width, height }) => {
-      const webp = await pngToWebp(png);
+    async ({ page, webp: bytes, width, height }) => {
+      const webp = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
       const key = storageKeys.page(productId, setId, page);
       await storage().put(key, webp, 'image/webp');
       await ProductAsset.create({

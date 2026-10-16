@@ -169,7 +169,7 @@ adminProductsRouter.post('/:id/pdf', pdfUpload, async (req, res) => {
     // An earlier upload that never went live (still processing or failed) is superseded now.
     const pending = product.pdfAssetId;
     product.pdfAssetId = assetId;
-    product.set('processing', { status: 'queued', error: null, done: 0, total: 0, updatedAt: new Date() });
+    product.set('processing', { status: 'queued', error: null, done: 0, total: 0, attempts: 0, updatedAt: new Date() });
     await product.save();
     if (pending && !(product.pageSetId && pending.equals(product.pageSetId))) {
       await removeOriginalAndPages(product._id.toString(), pending);
@@ -195,7 +195,7 @@ adminProductsRouter.post('/:id/reprocess', async (req, res) => {
   if (product.processing?.status === 'queued' || product.processing?.status === 'processing') {
     throw new HttpError(409, 'BUSY', 'This PDF is already being processed');
   }
-  product.set('processing', { status: 'queued', error: null, done: 0, total: 0, updatedAt: new Date() });
+  product.set('processing', { status: 'queued', error: null, done: 0, total: 0, attempts: 0, updatedAt: new Date() });
   await product.save();
   void enqueueProcessing(product._id.toString());
   res.status(202).json({ product: await toAdmin(product) });
