@@ -25,9 +25,12 @@ services:
         value: "2"
       - key: APP_SECRET
         generateValue: true
-      # Public URL of the web service, e.g. https://readnshare-web.onrender.com
+      # The public website address (used in email links and to validate request origins).
       - key: APP_URL
-        sync: false
+        value: https://readnshare.in
+      # The www variant is accepted too, in case someone reaches the site through it.
+      - key: ALLOWED_ORIGINS
+        value: https://www.readnshare.in
       - key: MONGODB_URI
         sync: false
       - key: STORAGE_DRIVER
@@ -76,6 +79,9 @@ services:
     runtime: node
     region: singapore
     plan: starter
+    # Render also adds www.readnshare.in and redirects between the two.
+    domains:
+      - readnshare.in
     buildCommand: npm ci --include=dev && npm run build --workspace @ebook/web
     startCommand: npm run start --workspace @ebook/web
     healthCheckPath: /
@@ -90,6 +96,6 @@ services:
       - key: API_URL
         sync: false
       - key: NEXT_PUBLIC_SITE_URL
-        sync: false
+        value: https://readnshare.in
       - key: NEXT_PUBLIC_SITE_NAME
         value: ReadnShare
