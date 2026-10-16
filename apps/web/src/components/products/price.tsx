@@ -1,0 +1,34 @@
+import { formatINR } from "@ebook/shared";
+import { cn } from "@/lib/utils";
+
+export function Price({
+  pricePaise,
+  effectivePricePaise,
+  discountPercent,
+  size = "md",
+  className,
+}: {
+  pricePaise: number;
+  effectivePricePaise: number;
+  discountPercent: number;
+  size?: "md" | "lg";
+  className?: string;
+}) {
+  const onSale = discountPercent > 0;
+  return (
+    <div className={cn("flex flex-wrap items-baseline gap-x-2 gap-y-1", className)}>
+      <span className={cn("font-semibold tabular-nums", size === "lg" ? "text-3xl" : "text-base")}>
+        {formatINR(effectivePricePaise)}
+      </span>
+      {onSale && (
+        <>
+          <span className={cn("text-muted-foreground tabular-nums line-through", size === "lg" ? "text-lg" : "text-sm")}>
+            <span className="sr-only">Regular price </span>
+            {formatINR(pricePaise)}
+          </span>
+          <span className="text-success text-xs font-semibold">{discountPercent}% off</span>
+        </>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,41 @@
+import "server-only";
+import type { Paginated, ProductDetail, ProductSummary } from "@ebook/shared";
+
+const API_URL = process.env.API_URL ?? "http://127.0.0.1:5000";
+
+/**
+ * Server-side fetch from the Express API for storefront pages (SEO-friendly server rendering).
+ * Returns null for 404 so pages can render notFound().
+ */
+async function serverGet<T>(path: string): Promise<T | null> {
+  const res = await fetch(`${API_URL}/api/v1${path}`, { cache: "no-store", headers: { Accept: "application/json" } });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`API ${res.status} for ${path}`);
+  return (await res.json()) as T;
+}
+
+export interface CatalogParams {
+  q?: string;
+  category?: string;
+  sort?: string;
+  page?: number;
+  pageSize?: number;
+  featured?: boolean;
+}
+
+export async function getCatalog(params: CatalogParams): Promise<Paginated<ProductSummary>> {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") search.set(key, String(value));
+  }
+  return (await serverGet<Paginated<ProductSummary>>(`/products?${search}`)) ?? { items: [], page: 1, pageSize: 12, total: 0 };
+}
+
+export async function getCategories(): Promise<string[]> {
+  return (await serverGet<{ categories: string[] }>("/products/categories"))?.categories ?? [];
+}
+
+export async function getProduct(slug: string): Promise<ProductDetail | null> {
+  if (!/^[a-z0-9-]{1,80}$/.test(slug)) return null;
+  return (await serverGet<{ product: ProductDetail }>(`/products/${slug}`))?.product ?? null;
+}

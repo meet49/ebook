@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+.mongodb-binaries/
+next-env.d.ts
+
+# Local private file storage (development)
+storage/

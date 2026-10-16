@@ -1,0 +1,23 @@
+{
+  "name": "ebook-platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace @ebook/api",
+    "dev:web": "npm run dev --workspace @ebook/web",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "seed:admin": "npm run seed:admin --workspace @ebook/api"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "overrides": {
+    "esbuild": "^0.28.2"
+  }
+}
