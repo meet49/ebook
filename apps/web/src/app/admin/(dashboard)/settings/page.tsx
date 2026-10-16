@@ -1,9 +1,10 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Copy, CreditCard, ExternalLink, PlugZap, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, CreditCard, ExternalLink, Info, KeyRound, PlugZap, Trash2, Webhook } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { IconChip, StatusPill } from "@/components/dashboard/list-ui";
 import { PasswordInput } from "@/components/forms/password-input";
 import { PageHeader } from "@/components/layout/dashboard-shell";
 import {
@@ -16,7 +17,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -24,7 +24,6 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { ApiError, api, errorMessage } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 interface PaymentSettings {
   mode: "test" | "live" | "unconfigured";
@@ -50,19 +49,15 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" description="Store configuration. Changes take effect immediately — no restart needed." />
-      <div className="max-w-3xl space-y-6">{isPending || !data ? <Skeleton className="h-96" /> : <PaymentsCard settings={data} />}</div>
+      <PageHeader eyebrow="System" title="Settings" description="Store configuration. Changes take effect immediately — no restart needed." />
+      <div className="max-w-3xl space-y-6">{isPending || !data ? <Skeleton className="h-96 rounded-2xl" /> : <PaymentsCard settings={data} />}</div>
     </>
   );
 }
 
 function StatusBadge({ s }: { s: PaymentSettings }) {
-  if (s.mode === "unconfigured") return <Badge variant="destructive">Not configured</Badge>;
-  return (
-    <Badge variant="outline" className={cn(s.mode === "live" ? "bg-success/15 text-success border-success/20" : "bg-warning/15 text-warning border-warning/20")}>
-      {s.mode === "live" ? "Live mode — real payments" : "Test mode — no real money"}
-    </Badge>
-  );
+  if (s.mode === "unconfigured") return <StatusPill tone="destructive">Not configured</StatusPill>;
+  return <StatusPill tone={s.mode === "live" ? "success" : "warning"}>{s.mode === "live" ? "Live mode — real payments" : "Test mode — no real money"}</StatusPill>;
 }
 
 function PaymentsCard({ settings: s }: { settings: PaymentSettings }) {
@@ -133,15 +128,15 @@ function PaymentsCard({ settings: s }: { settings: PaymentSettings }) {
 
   return (
     <>
-      <Card>
+      <Card className="rounded-2xl">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="size-5" aria-hidden /> Razorpay payments
+            <CardTitle className="flex items-center gap-3">
+              <IconChip icon={CreditCard} tone="primary" /> Razorpay payments
             </CardTitle>
             <StatusBadge s={s} />
           </div>
-          <CardDescription>
+          <CardDescription className="pt-1">
             {s.source === "database" && (
               <>
                 Using keys saved here: <span className="font-mono">{s.keyId}</span> · secret ••••{s.keySecretLast4}
@@ -158,13 +153,20 @@ function PaymentsCard({ settings: s }: { settings: PaymentSettings }) {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          <div className="bg-muted/60 rounded-lg p-3 text-sm">
+          <div className="bg-primary/5 border-primary/20 flex gap-3 rounded-xl border p-3.5 text-sm">
+            <Info className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
+            <p>
             Find your keys in the{" "}
             <a href="https://dashboard.razorpay.com/app/website-app-settings/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary inline-flex items-center gap-1 font-medium hover:underline">
               Razorpay Dashboard → Account &amp; Settings → API Keys <ExternalLink className="size-3" aria-hidden />
             </a>
             . Use <strong>Test Mode</strong> keys (<span className="font-mono">rzp_test_…</span>) until you are ready to accept real payments.
+            </p>
           </div>
+
+          <p className="text-muted-foreground flex items-center gap-2 text-xs font-semibold tracking-wider uppercase">
+            <KeyRound className="size-3.5" aria-hidden /> API keys
+          </p>
 
           <FieldGroup>
             <Field data-invalid={Boolean(errors.keyId)}>
@@ -197,16 +199,19 @@ function PaymentsCard({ settings: s }: { settings: PaymentSettings }) {
             </Field>
           </FieldGroup>
 
-          <div className="space-y-2 rounded-lg border p-3 text-sm">
-            <p className="font-medium">Webhook setup (Razorpay → Account &amp; Settings → Webhooks)</p>
+          <div className="bg-muted/30 space-y-3 rounded-xl border p-4 text-sm">
+            <p className="flex items-center gap-2 font-medium">
+              <Webhook className="text-muted-foreground size-4" aria-hidden /> Webhook setup
+              <span className="text-muted-foreground font-normal">(Razorpay → Account &amp; Settings → Webhooks)</span>
+            </p>
             <div className="flex gap-2">
-              <Input readOnly value={s.webhookUrl} className="font-mono text-xs" aria-label="Webhook URL" onFocus={(e) => e.target.select()} />
-              <Button type="button" variant="outline" size="icon-lg" aria-label="Copy webhook URL" onClick={() => copy(s.webhookUrl)}>
+              <Input readOnly value={s.webhookUrl} className="bg-background font-mono text-xs" aria-label="Webhook URL" onFocus={(e) => e.target.select()} />
+              <Button type="button" variant="outline" size="icon-lg" className="bg-background" aria-label="Copy webhook URL" onClick={() => copy(s.webhookUrl)}>
                 <Copy />
               </Button>
             </div>
             <p className="text-muted-foreground">
-              Active events: {s.webhookEvents.map((e) => <code key={e} className="bg-muted mr-1 rounded px-1 text-xs">{e}</code>)}
+              Active events: {s.webhookEvents.map((e) => <code key={e} className="bg-background mr-1 rounded border px-1.5 py-0.5 text-xs">{e}</code>)}
             </p>
             {s.webhookUrl.startsWith("http://localhost") && (
               <p className="text-warning flex gap-1.5 text-xs">
@@ -215,7 +220,7 @@ function PaymentsCard({ settings: s }: { settings: PaymentSettings }) {
             )}
           </div>
 
-          <Field data-invalid={Boolean(errors.currentPassword)}>
+          <Field data-invalid={Boolean(errors.currentPassword)} className="border-t pt-6">
             <FieldLabel htmlFor="confirm-password">Your admin password</FieldLabel>
             <PasswordInput id="confirm-password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" aria-invalid={Boolean(errors.currentPassword)} />
             {errors.currentPassword ? <FieldError>{errors.currentPassword}</FieldError> : <FieldDescription>Required to change where payments go.</FieldDescription>}
@@ -230,7 +235,7 @@ function PaymentsCard({ settings: s }: { settings: PaymentSettings }) {
             {test.isPending ? <Spinner /> : <PlugZap />} Test connection
           </Button>
           {s.savedInDashboard && (
-            <Button variant="ghost" className="text-destructive ml-auto" onClick={() => setConfirmRemove(true)}>
+            <Button variant="ghost" className="text-destructive hover:text-destructive sm:ml-auto" onClick={() => setConfirmRemove(true)}>
               <Trash2 /> Remove saved keys
             </Button>
           )}

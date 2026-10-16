@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useMessages } from "@/i18n/client";
 import { hasRole, useLogout } from "@/lib/auth";
 
 export function initials(name: string): string {
@@ -28,13 +29,14 @@ export function initials(name: string): string {
 export function UserMenu({ user, afterLogout = "/" }: { user: PublicUser; afterLogout?: string }) {
   const router = useRouter();
   const logout = useLogout();
+  const t = useMessages().common.userMenu;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-lg" className="rounded-full" aria-label="Account menu">
-          <Avatar className="size-8">
-            <AvatarFallback className="bg-accent text-accent-foreground text-xs font-semibold">
+        <Button variant="ghost" size="icon-lg" className="rounded-full" aria-label={t.account}>
+          <Avatar className="ring-primary/20 size-8 ring-2">
+            <AvatarFallback className="bg-gradient-brand text-xs font-semibold text-white">
               {initials(user.name)}
             </AvatarFallback>
           </Avatar>
@@ -49,34 +51,34 @@ export function UserMenu({ user, afterLogout = "/" }: { user: PublicUser; afterL
         {hasRole(user, "customer") && (
           <DropdownMenuItem asChild>
             <Link href="/library">
-              <BookMarked /> My library
+              <BookMarked /> {t.library}
             </Link>
           </DropdownMenuItem>
         )}
         {hasRole(user, "affiliate") && (
           <DropdownMenuItem asChild>
             <Link href="/affiliate">
-              <Megaphone /> Affiliate dashboard
+              <Megaphone /> {t.affiliate}
             </Link>
           </DropdownMenuItem>
         )}
         {hasRole(user, "admin") && (
           <DropdownMenuItem asChild>
             <Link href="/admin">
-              <Shield /> Admin
+              <Shield /> {t.admin}
             </Link>
           </DropdownMenuItem>
         )}
         {hasRole(user, "customer") && (
           <DropdownMenuItem asChild>
             <Link href="/account">
-              <Settings /> Account settings
+              <Settings /> {t.settings}
             </Link>
           </DropdownMenuItem>
         )}
         {!hasRole(user, "customer") && !hasRole(user, "affiliate") && !hasRole(user, "admin") && (
           <DropdownMenuItem disabled>
-            <LayoutDashboard /> No dashboards
+            <LayoutDashboard /> {t.noDashboards}
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
@@ -90,7 +92,7 @@ export function UserMenu({ user, afterLogout = "/" }: { user: PublicUser; afterL
             })
           }
         >
-          <LogOut /> Sign out
+          <LogOut /> {t.signOut}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

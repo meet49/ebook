@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Lock, ShieldCheck } from "lucide-react";
+import { BookOpenCheck, Lock, ShieldCheck, UserRound } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { useMessages } from "@/i18n/client";
 import { ApiError, api } from "@/lib/api";
 import { useMe } from "@/lib/auth";
 import { handleFormError } from "@/lib/forms";
@@ -35,6 +36,7 @@ const guestSchema = z.object({ name: nameSchema, email: emailSchema });
 type GuestValues = z.infer<typeof guestSchema>;
 
 export function CheckoutPanel({ slug, amountPaise }: { slug: string; amountPaise: number }) {
+  const t = useMessages().checkout;
   const router = useRouter();
   const { data: user, isPending } = useMe();
   const [stage, setStage] = useState<"idle" | "creating" | "paying" | "verifying">("idle");
@@ -85,67 +87,81 @@ export function CheckoutPanel({ slug, amountPaise }: { slug: string; amountPaise
         handler: (res) => void verify(order, res),
         modal: { ondismiss: () => setStage("idle"), confirm_close: true },
       },
-      (message) => toast.error(`${message} You can try again.`),
+      (message) => toast.error(`${message} ${t.tryAgainSuffix}`),
     );
   };
 
   const busy = stage !== "idle";
-  const label =
-    stage === "creating" ? "Preparing secure checkout…" : stage === "paying" ? "Complete payment in the window…" : stage === "verifying" ? "Confirming payment…" : `Pay ${formatINR(amountPaise)}`;
+  const label = stage === "idle" ? t.pay(formatINR(amountPaise)) : t.stage[stage];
+  const payClass = "h-12 w-full rounded-full text-base shadow-lg shadow-indigo-900/15";
 
-  if (isPending) return <Skeleton className="h-48" />;
+  if (isPending) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-16 rounded-2xl" />
+        <Skeleton className="h-12 rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
       {owned ? (
-        <div className="bg-accent text-accent-foreground space-y-3 rounded-xl p-4 text-sm" role="status">
-          <p className="font-medium">{owned}</p>
-          <Button asChild size="sm">
+        <div className="border-primary/20 bg-accent text-accent-foreground flex flex-col gap-3 rounded-2xl border p-4 text-sm sm:flex-row sm:items-center sm:justify-between" role="status">
+          <p className="flex items-start gap-2.5 font-medium">
+            <BookOpenCheck className="text-primary mt-0.5 size-4.5 shrink-0" aria-hidden />
+            {t.alreadyOwned}
+          </p>
+          <Button asChild size="sm" className="shrink-0 rounded-full px-4">
             <Link href={user ? `/read/${slug}` : `/login?next=${encodeURIComponent(`/read/${slug}`)}`}>
-              {user ? "Read now" : "Sign in to read"}
+              {user ? t.readNow : t.signInToRead}
             </Link>
           </Button>
         </div>
       ) : null}
 
       {user ? (
-        <div className="space-y-4">
-          <p className="text-sm">
-            Buying as <span className="font-medium">{user.email}</span>. The book will appear in your library.
-          </p>
-          <Button size="lg" className="w-full" disabled={busy} onClick={() => void pay()}>
+        <div className="space-y-5">
+          <div className="bg-muted/50 flex items-center gap-3 rounded-2xl border p-4">
+            <span className="bg-gradient-brand flex size-10 shrink-0 items-center justify-center rounded-full text-white">
+              <UserRound className="size-5" aria-hidden />
+            </span>
+            <div className="min-w-0 text-sm">
+              <p className="text-muted-foreground text-xs">{t.buyingAs}</p>
+              <p className="truncate font-semibold">{user.email}</p>
+              <p className="text-muted-foreground mt-0.5 text-xs">{t.buyingAsHint}</p>
+            </div>
+          </div>
+          <Button size="lg" className={payClass} disabled={busy} onClick={() => void pay()}>
             {busy ? <Spinner /> : <Lock />} {label}
           </Button>
         </div>
       ) : (
-        <form noValidate onSubmit={form.handleSubmit((v) => pay(v))} className="space-y-5">
+        <form noValidate onSubmit={form.handleSubmit((v) => pay(v))} className="space-y-6">
           <FieldGroup>
-            <FormField control={form.control} name="name" label="Full name">
-              {({ field, id, invalid }) => <Input id={id} autoComplete="name" aria-invalid={invalid} {...field} />}
+            <FormField control={form.control} name="name" label={t.form.name}>
+              {({ field, id, invalid }) => <Input id={id} autoComplete="name" aria-invalid={invalid} className="h-11 rounded-xl" {...field} />}
             </FormField>
-            <FormField
-              control={form.control}
-              name="email"
-              label="Email"
-              description="Your library access link and receipt are sent here."
-            >
-              {({ field, id, invalid }) => <Input id={id} type="email" autoComplete="email" aria-invalid={invalid} {...field} />}
+            <FormField control={form.control} name="email" label={t.form.email} description={t.form.emailHint}>
+              {({ field, id, invalid }) => (
+                <Input id={id} type="email" inputMode="email" autoComplete="email" aria-invalid={invalid} className="h-11 rounded-xl" {...field} />
+              )}
             </FormField>
           </FieldGroup>
-          <Button type="submit" size="lg" className="w-full" disabled={busy}>
+          <Button type="submit" size="lg" className={payClass} disabled={busy}>
             {busy ? <Spinner /> : <Lock />} {label}
           </Button>
           <p className="text-muted-foreground text-center text-sm">
-            Already have an account?{" "}
+            {t.haveAccount}{" "}
             <Link href={`/login?next=${encodeURIComponent(`/checkout/${slug}`)}`} className="text-primary font-medium hover:underline">
-              Sign in
+              {t.signIn}
             </Link>
           </p>
         </form>
       )}
 
-      <p className="text-muted-foreground flex items-center justify-center gap-1.5 text-xs">
-        <ShieldCheck className="size-3.5" aria-hidden /> Payments are processed securely by Razorpay. We never see your card details.
+      <p className="text-muted-foreground flex items-start justify-center gap-1.5 border-t pt-5 text-center text-xs">
+        <ShieldCheck className="mt-px size-3.5 shrink-0" aria-hidden /> {t.secureNote}
       </p>
     </div>
   );

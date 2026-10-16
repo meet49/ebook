@@ -1,4 +1,7 @@
+"use client";
+
 import { formatINR } from "@ebook/shared";
+import { useMessages } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 export function Price({
@@ -14,6 +17,7 @@ export function Price({
   size?: "md" | "lg";
   className?: string;
 }) {
+  const t = useMessages().common.price;
   const onSale = discountPercent > 0;
   return (
     <div className={cn("flex flex-wrap items-baseline gap-x-2 gap-y-1", className)}>
@@ -23,10 +27,10 @@ export function Price({
       {onSale && (
         <>
           <span className={cn("text-muted-foreground tabular-nums line-through", size === "lg" ? "text-lg" : "text-sm")}>
-            <span className="sr-only">Regular price </span>
+            <span className="sr-only">{t.regular} </span>
             {formatINR(pricePaise)}
           </span>
-          <span className="text-success text-xs font-semibold">{discountPercent}% off</span>
+          <span className="text-success text-xs font-semibold">{t.off(discountPercent)}</span>
         </>
       )}
     </div>

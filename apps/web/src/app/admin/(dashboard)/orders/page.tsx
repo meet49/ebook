@@ -1,26 +1,26 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Receipt, RefreshCw, Search, Undo2 } from "lucide-react";
-import { useDeferredValue, useState } from "react";
+import { ChevronRight, Receipt, RefreshCw, Undo2 } from "lucide-react";
+import { useDeferredValue, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { formatINR, rupeesToPaise, type OrderStatus, type Paginated } from "@ebook/shared";
+import { FilterPills, ListCard, SearchField, StatusPill } from "@/components/dashboard/list-ui";
 import { OrderStatusBadge } from "@/components/checkout/order-status";
 import { PageHeader } from "@/components/layout/dashboard-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { api, errorMessage } from "@/lib/api";
 import type { AdminOrder } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { AdminPager, ListEmpty, ListError, ListSkeleton } from "../_components/admin-list";
 
 const FILTERS: { value: OrderStatus | "all"; label: string }[] = [
   { value: "all", label: "All" },
@@ -37,6 +37,14 @@ interface OrderDetail {
   order: AdminOrder;
   events: { eventId: string; type: string; status: string; error: string | null; createdAt: string }[];
   commission: { amountPaise: number; status: string; clawbackRequired: boolean } | null;
+}
+
+function Source({ order }: { order: AdminOrder }) {
+  return order.attribution.type === "affiliate" ? (
+    <StatusPill tone="violet">Affiliate {order.attribution.affiliateCode}</StatusPill>
+  ) : (
+    <span className="text-muted-foreground text-xs">Direct</span>
+  );
 }
 
 export default function AdminOrdersPage() {
@@ -58,95 +66,129 @@ export default function AdminOrdersPage() {
 
   return (
     <>
-      <PageHeader title="Orders & refunds" description="Verified payments, refunds and payment history." />
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <Tabs value={status} onValueChange={(v) => { setStatus(v as OrderStatus | "all"); setPage(1); }}>
-          <TabsList className="flex-wrap">
-            {FILTERS.map((f) => (
-              <TabsTrigger key={f.value} value={f.value}>
-                {f.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <div className="relative w-full lg:max-w-xs">
-          <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" aria-hidden />
-          <Input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="Order no., email, title, payment ID" className="pl-9" aria-label="Search orders" />
-        </div>
-      </div>
+      <PageHeader eyebrow="Store" title="Orders & refunds" description="Verified payments, refunds and payment history. Select an order for details." />
 
-      <Card className="overflow-hidden py-0">
+      <ListCard
+        toolbar={
+          <>
+            <FilterPills
+              label="Filter by status"
+              value={status}
+              onChange={(v) => {
+                setStatus(v);
+                setPage(1);
+              }}
+              options={FILTERS}
+            />
+            <SearchField
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Order no., email, title, payment ID"
+              aria-label="Search orders"
+              className="lg:max-w-xs"
+            />
+          </>
+        }
+      >
         {isError ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyTitle>Couldn&apos;t load orders</EmptyTitle>
-              <EmptyDescription>
-                <Button variant="outline" onClick={() => refetch()}>Try again</Button>
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <ListError title="Couldn't load orders" onRetry={() => refetch()} />
         ) : isPending ? (
-          <div className="space-y-2 p-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
+          <ListSkeleton rows={6} />
         ) : data.items.length === 0 ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon"><Receipt /></EmptyMedia>
-              <EmptyTitle>No orders</EmptyTitle>
-              <EmptyDescription>Orders appear here once customers check out.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <ListEmpty icon={Receipt} title="No orders" description="Orders appear here once customers check out." />
         ) : (
-          <Table className={isPlaceholderData ? "opacity-60" : undefined}>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-4">Order</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>eBook</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="pr-4 text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <div className={cn("transition-opacity", isPlaceholderData && "opacity-60")}>
+            {/* Phones: stacked rows */}
+            <ul className="divide-y md:hidden">
               {data.items.map((o) => (
-                <TableRow key={o.id} className="cursor-pointer" onClick={() => setSelected(o.id)}>
-                  <TableCell className="pl-4">
-                    <div className="font-mono text-xs">{o.orderNumber}</div>
-                    <div className="text-muted-foreground text-xs">{dateFmt.format(new Date(o.createdAt))}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{o.customer.name}</div>
-                    <div className="text-muted-foreground text-xs">{o.customer.email}</div>
-                  </TableCell>
-                  <TableCell className="max-w-48 truncate">{o.product.title}</TableCell>
-                  <TableCell>
-                    {o.attribution.type === "affiliate" ? <Badge variant="secondary">Affiliate {o.attribution.affiliateCode}</Badge> : <span className="text-muted-foreground text-sm">Direct</span>}
-                  </TableCell>
-                  <TableCell><OrderStatusBadge status={o.status} /></TableCell>
-                  <TableCell className="pr-4 text-right tabular-nums">{formatINR(o.amountPaise)}</TableCell>
-                </TableRow>
+                <li key={o.id}>
+                  <button type="button" onClick={() => setSelected(o.id)} className="hover:bg-muted/50 flex w-full items-start gap-3 p-4 text-left transition-colors">
+                    <span className="min-w-0 flex-1 space-y-1.5">
+                      <span className="flex items-start justify-between gap-3">
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{o.customer.name}</span>
+                          <span className="text-muted-foreground block truncate text-xs">{o.product.title}</span>
+                        </span>
+                        <span className="shrink-0 font-semibold tabular-nums">{formatINR(o.amountPaise)}</span>
+                      </span>
+                      <span className="flex flex-wrap items-center gap-2">
+                        <OrderStatusBadge status={o.status} />
+                        <Source order={o} />
+                      </span>
+                      <span className="text-muted-foreground block font-mono text-xs">
+                        {o.orderNumber} · <span className="font-sans">{dateFmt.format(new Date(o.createdAt))}</span>
+                      </span>
+                    </span>
+                    <ChevronRight className="text-muted-foreground mt-1 size-4 shrink-0" aria-hidden />
+                  </button>
+                </li>
               ))}
-            </TableBody>
-          </Table>
-        )}
-      </Card>
+            </ul>
 
-      {data && data.total > data.pageSize && (
-        <div className="mt-4 flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Page {page} of {totalPages} · {data.total} orders</span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+            <Table className="hidden md:table">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="pl-4">Order</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>eBook</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="pr-4 text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.items.map((o) => (
+                  <TableRow key={o.id} className="cursor-pointer" onClick={() => setSelected(o.id)}>
+                    <TableCell className="pl-4">
+                      <button
+                        type="button"
+                        className="focus-visible:ring-ring/50 rounded font-mono text-xs font-medium outline-none hover:underline focus-visible:ring-3"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelected(o.id);
+                        }}
+                      >
+                        {o.orderNumber}
+                      </button>
+                      <div className="text-muted-foreground text-xs">{dateFmt.format(new Date(o.createdAt))}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{o.customer.name}</div>
+                      <div className="text-muted-foreground text-xs">{o.customer.email}</div>
+                    </TableCell>
+                    <TableCell className="max-w-48 truncate">{o.product.title}</TableCell>
+                    <TableCell>
+                      <Source order={o} />
+                    </TableCell>
+                    <TableCell>
+                      <OrderStatusBadge status={o.status} />
+                    </TableCell>
+                    <TableCell className="pr-4 text-right font-semibold tabular-nums">{formatINR(o.amountPaise)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-        </div>
-      )}
+        )}
+        {data ? <AdminPager page={page} totalPages={totalPages} onPage={setPage} summary={`${data.total} orders`} /> : null}
+      </ListCard>
 
       <Sheet open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-          {selected && <OrderDetailPanel id={selected} />}
-        </SheetContent>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">{selected && <OrderDetailPanel id={selected} />}</SheetContent>
       </Sheet>
     </>
+  );
+}
+
+function Section({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
+  return (
+    <section className={cn("space-y-3 rounded-xl border p-4", className)}>
+      <h3 className="text-sm font-semibold">{title}</h3>
+      {children}
+    </section>
   );
 }
 
@@ -180,6 +222,7 @@ function OrderDetailPanel({ id }: { id: string }) {
   if (isPending || !data) {
     return (
       <div className="space-y-3 p-4">
+        <SheetTitle className="sr-only">Order details</SheetTitle>
         <Skeleton className="h-6 w-48" />
         <Skeleton className="h-40" />
       </div>
@@ -191,63 +234,86 @@ function OrderDetailPanel({ id }: { id: string }) {
 
   return (
     <>
-      <SheetHeader>
-        <SheetTitle className="font-mono">{order.orderNumber}</SheetTitle>
+      <SheetHeader className="border-b">
+        <div className="flex flex-wrap items-center gap-2">
+          <SheetTitle className="font-mono">{order.orderNumber}</SheetTitle>
+          <OrderStatusBadge status={order.status} />
+        </div>
         <SheetDescription>{dateFmt.format(new Date(order.createdAt))}</SheetDescription>
       </SheetHeader>
-      <div className="space-y-6 px-4 pb-6 text-sm">
-        <dl className="grid grid-cols-[120px_1fr] gap-x-3 gap-y-2">
-          <dt className="text-muted-foreground">Status</dt>
-          <dd><OrderStatusBadge status={order.status} /></dd>
+      <div className="space-y-5 px-4 pb-6 text-sm">
+        <div className="bg-muted/50 rounded-xl p-4">
+          <p className="text-muted-foreground text-xs">Amount</p>
+          <p className="text-2xl font-semibold tracking-tight tabular-nums">{formatINR(order.amountPaise)}</p>
+          {order.refundedPaise > 0 && <p className="text-warning text-xs font-medium">−{formatINR(order.refundedPaise)} refunded</p>}
+        </div>
+
+        <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-2.5">
           <dt className="text-muted-foreground">Customer</dt>
-          <dd>{order.customer.name}<div className="text-muted-foreground">{order.customer.email}</div></dd>
+          <dd>
+            {order.customer.name}
+            <div className="text-muted-foreground break-all">{order.customer.email}</div>
+          </dd>
           <dt className="text-muted-foreground">eBook</dt>
           <dd>{order.product.title}</dd>
-          <dt className="text-muted-foreground">Amount</dt>
-          <dd className="tabular-nums">{formatINR(order.amountPaise)}{order.refundedPaise > 0 && ` (−${formatINR(order.refundedPaise)} refunded)`}</dd>
           <dt className="text-muted-foreground">Razorpay order</dt>
           <dd className="font-mono text-xs break-all">{order.razorpay.orderId}</dd>
           <dt className="text-muted-foreground">Payment</dt>
-          <dd className="font-mono text-xs break-all">{order.razorpay.paymentId ?? "—"}{order.razorpay.method ? ` · ${order.razorpay.method}` : ""}</dd>
+          <dd className="font-mono text-xs break-all">
+            {order.razorpay.paymentId ?? "—"}
+            {order.razorpay.method ? ` · ${order.razorpay.method}` : ""}
+          </dd>
           <dt className="text-muted-foreground">Attribution</dt>
-          <dd>{order.attribution.type === "affiliate" ? `Affiliate ${order.attribution.affiliateCode}` : "Direct"}</dd>
+          <dd>
+            <Source order={order} />
+          </dd>
           {commission && (
             <>
               <dt className="text-muted-foreground">Commission</dt>
-              <dd>
-                {formatINR(commission.amountPaise)} · <span className="capitalize">{commission.status}</span>
-                {commission.clawbackRequired && <Badge variant="destructive" className="ml-2">Clawback needed</Badge>}
+              <dd className="flex flex-wrap items-center gap-2">
+                <span className="tabular-nums">{formatINR(commission.amountPaise)}</span>
+                <Badge variant="outline" className="capitalize">
+                  {commission.status}
+                </Badge>
+                {commission.clawbackRequired && <StatusPill tone="destructive">Clawback needed</StatusPill>}
               </dd>
             </>
           )}
           {order.failureReason && (
             <>
               <dt className="text-muted-foreground">Failure</dt>
-              <dd>{order.failureReason}</dd>
+              <dd className="text-destructive">{order.failureReason}</dd>
             </>
           )}
         </dl>
 
         {order.refunds.length > 0 && (
-          <section className="space-y-2">
-            <h3 className="font-medium">Refunds</h3>
-            <ul className="divide-y rounded-lg border">
+          <Section title="Refunds">
+            <ul className="divide-y">
               {order.refunds.map((r) => (
-                <li key={r.refundId} className="flex justify-between px-3 py-2">
-                  <span className="font-mono text-xs">{r.refundId}</span>
-                  <span>{formatINR(r.amountPaise)} · <span className="capitalize">{r.status}</span></span>
+                <li key={r.refundId} className="flex justify-between gap-3 py-2 first:pt-0 last:pb-0">
+                  <span className="font-mono text-xs break-all">{r.refundId}</span>
+                  <span className="shrink-0">
+                    <span className="tabular-nums">{formatINR(r.amountPaise)}</span> · <span className="capitalize">{r.status}</span>
+                  </span>
                 </li>
               ))}
             </ul>
-          </section>
+          </Section>
         )}
 
         {(order.status === "paid" || order.status === "partially_refunded") && refundable > 0 && (
-          <section className="space-y-3 rounded-lg border p-3">
-            <h3 className="font-medium">Issue a refund</h3>
+          <Section title="Issue a refund" className="border-destructive/25 bg-destructive/3">
             <Field>
               <FieldLabel htmlFor="refund-amount">Amount (₹)</FieldLabel>
-              <Input id="refund-amount" inputMode="decimal" placeholder={`Full: ${(refundable / 100).toFixed(2)}`} value={amount} onChange={(e) => setAmount(e.target.value)} aria-invalid={!amountValid} />
+              <Input
+                id="refund-amount"
+                inputMode="decimal"
+                placeholder={`Full: ${(refundable / 100).toFixed(2)}`}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                aria-invalid={!amountValid}
+              />
               <FieldDescription>Leave empty for a full refund. A full refund removes the book from the customer&apos;s library and reverses any commission.</FieldDescription>
             </Field>
             <Field>
@@ -257,31 +323,36 @@ function OrderDetailPanel({ id }: { id: string }) {
             <Button variant="destructive" disabled={refund.isPending || reason.trim().length < 3 || !amountValid} onClick={() => refund.mutate()}>
               {refund.isPending ? <Spinner /> : <Undo2 />} Refund via Razorpay
             </Button>
-          </section>
+          </Section>
         )}
 
         {(order.status === "created" || order.status === "failed") && (
-          <section className="space-y-2 rounded-lg border p-3">
-            <h3 className="font-medium">Check with Razorpay</h3>
+          <Section title="Check with Razorpay">
             <p className="text-muted-foreground">If the customer says they paid, this looks up the order at Razorpay and fulfils it if a matching captured payment exists.</p>
             <Button variant="outline" disabled={reconcile.isPending} onClick={() => reconcile.mutate()}>
               {reconcile.isPending ? <Spinner /> : <RefreshCw />} Reconcile payment
             </Button>
-          </section>
+          </Section>
         )}
 
         {events.length > 0 && (
-          <section className="space-y-2">
-            <h3 className="font-medium">Webhook events</h3>
-            <ul className="divide-y rounded-lg border">
+          <Section title="Webhook events">
+            <ol className="space-y-3 border-l pl-4">
               {events.map((e) => (
-                <li key={e.eventId} className="px-3 py-2">
-                  <div className="flex justify-between"><span>{e.type}</span><span className="text-muted-foreground capitalize">{e.status}</span></div>
-                  <div className="text-muted-foreground text-xs">{dateFmt.format(new Date(e.createdAt))}{e.error ? ` · ${e.error}` : ""}</div>
+                <li key={e.eventId} className="relative">
+                  <span aria-hidden className="bg-border absolute top-1.5 -left-5.25 size-2.5 rounded-full border-2 border-card" />
+                  <div className="flex justify-between gap-3">
+                    <span className="font-mono text-xs">{e.type}</span>
+                    <span className="text-muted-foreground text-xs capitalize">{e.status}</span>
+                  </div>
+                  <div className="text-muted-foreground text-xs">
+                    {dateFmt.format(new Date(e.createdAt))}
+                    {e.error ? <span className="text-destructive"> · {e.error}</span> : null}
+                  </div>
                 </li>
               ))}
-            </ul>
-          </section>
+            </ol>
+          </Section>
         )}
       </div>
     </>

@@ -8,6 +8,7 @@ import type { Portal, Role } from "@ebook/shared";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMessages } from "@/i18n/client";
 import { PORTAL_LOGIN, hasRole, useLogout, useMe } from "@/lib/auth";
 
 const ROLE_FOR_PORTAL: Record<Portal, Role> = { customer: "customer", affiliate: "affiliate", admin: "admin" };
@@ -21,6 +22,8 @@ export function RoleGate({ portal, children, fallback }: { portal: Portal; child
   const pathname = usePathname();
   const { data: user, isPending, isError, refetch } = useMe();
   const logout = useLogout();
+  const m = useMessages();
+  const t = m.auth.gate;
 
   useEffect(() => {
     if (user === null) router.replace(`${PORTAL_LOGIN[portal]}?next=${encodeURIComponent(pathname)}`);
@@ -30,11 +33,11 @@ export function RoleGate({ portal, children, fallback }: { portal: Portal; child
     return (
       <Empty className="min-h-[50vh]">
         <EmptyHeader>
-          <EmptyTitle>We couldn&apos;t load your account</EmptyTitle>
-          <EmptyDescription>Please check your connection and try again.</EmptyDescription>
+          <EmptyTitle>{t.loadError}</EmptyTitle>
+          <EmptyDescription>{t.loadErrorBody}</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button onClick={() => refetch()}>Try again</Button>
+          <Button onClick={() => refetch()}>{m.common.actions.tryAgain}</Button>
         </EmptyContent>
       </Empty>
     );
@@ -46,21 +49,19 @@ export function RoleGate({ portal, children, fallback }: { portal: Portal; child
     return (
       <Empty className="min-h-[60vh]">
         <EmptyHeader>
-          <EmptyMedia variant="icon">
+          <EmptyMedia variant="icon" className="bg-warning/12 text-warning">
             <ShieldAlert />
           </EmptyMedia>
-          <EmptyTitle>This area isn&apos;t available to your account</EmptyTitle>
-          <EmptyDescription>
-            You are signed in as {user.email}. Sign in with an account that has access, or go back to the store.
-          </EmptyDescription>
+          <EmptyTitle>{t.noAccess}</EmptyTitle>
+          <EmptyDescription>{t.signedInAs(user.email)}</EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="flex-row flex-wrap justify-center">
           <Button variant="outline" asChild>
-            <Link href="/">Back to store</Link>
+            <Link href="/">{m.common.dashboard.backToStore}</Link>
           </Button>
           {portal === "affiliate" && (
             <Button variant="outline" asChild>
-              <Link href="/affiliate/apply">Apply to become an affiliate</Link>
+              <Link href="/affiliate/apply">{t.apply}</Link>
             </Button>
           )}
           <Button
@@ -68,7 +69,7 @@ export function RoleGate({ portal, children, fallback }: { portal: Portal; child
               logout.mutate(undefined, { onSettled: () => router.replace(`${PORTAL_LOGIN[portal]}?next=${encodeURIComponent(pathname)}`) })
             }
           >
-            Switch account
+            {t.switchAccount}
           </Button>
         </EmptyContent>
       </Empty>
@@ -79,8 +80,9 @@ export function RoleGate({ portal, children, fallback }: { portal: Portal; child
 }
 
 function GateSkeleton() {
+  const t = useMessages().auth.gate;
   return (
-    <div className="space-y-4 p-6" aria-busy="true" aria-label="Loading">
+    <div className="space-y-4 p-6" aria-busy="true" aria-label={t.loading}>
       <Skeleton className="h-8 w-56" />
       <div className="grid gap-4 sm:grid-cols-3">
         <Skeleton className="h-28" />

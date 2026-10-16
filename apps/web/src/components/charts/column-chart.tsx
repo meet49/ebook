@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -13,11 +13,19 @@ export interface ColumnDatum {
   detail?: string;
 }
 
-const dayFmt = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" });
-
-function prettyLabel(label: string): string {
-  return /^\d{4}-\d{2}-\d{2}$/.test(label) ? dayFmt.format(new Date(`${label}T00:00:00`)) : label;
+export interface ColumnChartLabels {
+  viewChart: string;
+  viewTable: string;
+  date: string;
+  empty: string;
 }
+
+const DEFAULT_LABELS: ColumnChartLabels = {
+  viewChart: "View chart",
+  viewTable: "View as table",
+  date: "Date",
+  empty: "No activity in this period yet",
+};
 
 /** A 1-2-5 "nice" ceiling so gridlines land on round numbers. */
 function niceMax(max: number): number {
@@ -37,13 +45,21 @@ export function ColumnChart({
   format,
   label,
   height = 180,
+  labels = DEFAULT_LABELS,
+  locale = "en-IN",
 }: {
   data: ColumnDatum[];
   format: (v: number) => string;
   /** Accessible name, e.g. "Net revenue per day". */
   label: string;
   height?: number;
+  /** UI copy (defaults to English). */
+  labels?: ColumnChartLabels;
+  /** Intl locale for the date labels. */
+  locale?: string;
 }) {
+  const dayFmt = useMemo(() => new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }), [locale]);
+  const prettyLabel = (l: string) => (/^\d{4}-\d{2}-\d{2}$/.test(l) ? dayFmt.format(new Date(`${l}T00:00:00`)) : l);
   const [active, setActive] = useState<number | null>(null);
   const [asTable, setAsTable] = useState(false);
   const id = useId();
@@ -56,7 +72,7 @@ export function ColumnChart({
     <div className="space-y-2">
       <div className="flex justify-end">
         <Button variant="ghost" size="xs" onClick={() => setAsTable((t) => !t)} aria-controls={id}>
-          {asTable ? "View chart" : "View as table"}
+          {asTable ? labels.viewChart : labels.viewTable}
         </Button>
       </div>
 
@@ -65,7 +81,7 @@ export function ColumnChart({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-3">Date</TableHead>
+                <TableHead className="pl-3">{labels.date}</TableHead>
                 <TableHead className="pr-3 text-right">{label}</TableHead>
               </TableRow>
             </TableHeader>
@@ -115,7 +131,7 @@ export function ColumnChart({
                     >
                       <span
                         className={cn(
-                          "bg-primary block w-full max-w-6 rounded-t-[4px] transition-opacity",
+                          "bg-primary group-hover:bg-primary/85 block w-full max-w-6 rounded-t-[4px] transition-[opacity,background-color]",
                           active !== null && active !== i && "opacity-40",
                           d.value > 0 && "min-h-[2px]",
                         )}
@@ -146,7 +162,7 @@ export function ColumnChart({
               </div>
               {empty && (
                 <p className="text-muted-foreground absolute inset-x-0 text-center text-sm" style={{ top: height / 2 - 10 }}>
-                  No activity in this period yet
+                  {labels.empty}
                 </p>
               )}
             </div>

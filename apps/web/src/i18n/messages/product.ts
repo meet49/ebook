@@ -1,0 +1,96 @@
+/** Product (book detail) page, its sample viewer and the mobile buy bar. */
+const en = {
+  notFound: "eBook not found",
+  breadcrumb: "Breadcrumb",
+  ebook: "eBook",
+  buyNow: "Buy now",
+  oneTimePrice: "One-time payment · no subscription",
+  securePay: "Secure payment via Razorpay — UPI, cards, netbanking & wallets",
+  trust: {
+    instantTitle: "Instant access",
+    instantBody: "Your book opens in your library the moment payment is confirmed.",
+    readerTitle: "Read on any device",
+    readerBody: "Phone, tablet or laptop — read in the ReadnShare online reader. No download, nothing to install.",
+    watermarkTitle: "Your personal copy",
+    watermarkBody: "Every page is watermarked with your email, so the copy is yours alone.",
+    razorpayTitle: "Safe checkout",
+    razorpayBody: "Payments are processed by Razorpay. We never see your card details.",
+  },
+  pages: "Pages",
+  language: "Language",
+  format: "Format",
+  formatValue: "Online reader",
+  benefits: "What you'll get",
+  about: "About this eBook",
+  sample: {
+    title: "Read a sample",
+    hint: "Tap a page to open it — these are real pages from the book.",
+    pageShort: (n: number) => `p. ${n}`,
+    open: (n: number) => `Open sample page ${n}`,
+    dialogTitle: (title: string, n: number) => `${title} — sample page ${n}`,
+    dialogDescription: "Preview of a sample page from this eBook.",
+    pageAlt: (n: number) => `Sample page ${n}`,
+    error: "The sample could not be loaded. Please try again later.",
+    previous: "Previous",
+    next: "Next",
+  },
+  toc: {
+    title: "Table of contents",
+    page: (n: number) => `p. ${n}`,
+    count: (n: number) => `${n} ${n === 1 ? "entry" : "entries"}`,
+  },
+  more: {
+    eyebrow: "Keep exploring",
+    title: "More eBooks you may like",
+  },
+};
+
+export type ProductMessages = typeof en;
+
+const hi: ProductMessages = {
+  notFound: "ई-बुक नहीं मिली",
+  breadcrumb: "ब्रेडक्रम्ब",
+  ebook: "ई-बुक",
+  buyNow: "अभी ख़रीदें",
+  oneTimePrice: "सिर्फ़ एक बार पेमेंट · कोई सब्सक्रिप्शन नहीं",
+  securePay: "Razorpay से सुरक्षित पेमेंट — UPI, कार्ड, नेटबैंकिंग और वॉलेट",
+  trust: {
+    instantTitle: "तुरंत एक्सेस",
+    instantBody: "पेमेंट कन्फ़र्म होते ही किताब आपकी लाइब्रेरी में खुल जाती है।",
+    readerTitle: "किसी भी डिवाइस पर पढ़ें",
+    readerBody: "फ़ोन, टैबलेट या लैपटॉप — ReadnShare के ऑनलाइन रीडर में पढ़ें। न कुछ डाउनलोड करना, न इंस्टॉल करना।",
+    watermarkTitle: "आपकी पर्सनल कॉपी",
+    watermarkBody: "हर पेज पर आपका ईमेल वॉटरमार्क होता है, यानी यह कॉपी सिर्फ़ आपकी है।",
+    razorpayTitle: "सुरक्षित चेकआउट",
+    razorpayBody: "पेमेंट Razorpay से होता है। आपके कार्ड की जानकारी हम कभी नहीं देखते।",
+  },
+  pages: "पेज",
+  language: "भाषा",
+  format: "फ़ॉर्मेट",
+  formatValue: "ऑनलाइन रीडर",
+  benefits: "आपको क्या मिलेगा",
+  about: "इस ई-बुक के बारे में",
+  sample: {
+    title: "सैंपल पढ़ें",
+    hint: "पेज खोलने के लिए उस पर टैप करें — ये किताब के असली पेज हैं।",
+    pageShort: (n: number) => `पेज ${n}`,
+    open: (n: number) => `सैंपल पेज ${n} खोलें`,
+    dialogTitle: (title: string, n: number) => `${title} — सैंपल पेज ${n}`,
+    dialogDescription: "इस ई-बुक के एक सैंपल पेज की झलक।",
+    pageAlt: (n: number) => `सैंपल पेज ${n}`,
+    error: "सैंपल लोड नहीं हो सका। कृपया थोड़ी देर बाद फिर कोशिश करें।",
+    previous: "पिछला",
+    next: "अगला",
+  },
+  toc: {
+    title: "विषय-सूची",
+    page: (n: number) => `पेज ${n}`,
+    count: (n: number) => `${n} हिस्से`,
+  },
+  more: {
+    eyebrow: "और देखें",
+    title: "आपको ये ई-बुक्स भी पसंद आ सकती हैं",
+  },
+};
+
+export const product = { en, hi };

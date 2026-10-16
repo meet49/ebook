@@ -1,10 +1,12 @@
 "use client";
 
-import { Search, UserX } from "lucide-react";
+import { UserX } from "lucide-react";
 import { useDeferredValue, useState } from "react";
 import { toast } from "sonner";
 import type { PublicUser } from "@ebook/shared";
+import { ListCard, SearchField, StatusPill } from "@/components/dashboard/list-ui";
 import { PageHeader } from "@/components/layout/dashboard-shell";
+import { initials } from "@/components/layout/user-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,16 +17,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAdminUsers, useSetUserStatus } from "@/lib/admin";
 import { errorMessage } from "@/lib/api";
 import { useMe } from "@/lib/auth";
+import { cn } from "@/lib/utils";
+import { AdminPager, ListEmpty, ListError, ListSkeleton } from "../_components/admin-list";
 
 const PAGE_SIZE = 20;
 const dateFmt = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" });
@@ -48,58 +48,41 @@ export default function CustomersPage() {
 
   return (
     <>
-      <PageHeader title="Customers" description="Everyone who has an account or bought an eBook." />
+      <PageHeader eyebrow="Store" title="Customers" description="Everyone who has an account or bought an eBook." />
 
-      <div className="relative mb-4 max-w-sm">
-        <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" aria-hidden />
-        <Input
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Search name or email"
-          className="pl-9"
-          aria-label="Search customers"
-        />
-      </div>
-
-      <Card className="overflow-hidden py-0">
+      <ListCard
+        toolbar={
+          <>
+            <p className="text-muted-foreground text-sm">{data ? `${data.total.toLocaleString("en-IN")} customers` : " "}</p>
+            <SearchField
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search name or email"
+              aria-label="Search customers"
+              className="lg:max-w-xs"
+            />
+          </>
+        }
+      >
         {isError ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyTitle>Couldn&apos;t load customers</EmptyTitle>
-              <EmptyDescription>
-                <Button variant="outline" onClick={() => refetch()}>
-                  Try again
-                </Button>
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <ListError title="Couldn't load customers" onRetry={() => refetch()} />
         ) : isPending ? (
-          <div className="space-y-2 p-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-10" />
-            ))}
-          </div>
+          <ListSkeleton rows={6} />
         ) : data.items.length === 0 ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <UserX />
-              </EmptyMedia>
-              <EmptyTitle>{deferredQ ? "No matching customers" : "No customers yet"}</EmptyTitle>
-              <EmptyDescription>
-                {deferredQ ? "Try a different name or email." : "Customers appear here after they register or purchase."}
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <ListEmpty
+            icon={UserX}
+            title={deferredQ ? "No matching customers" : "No customers yet"}
+            description={deferredQ ? "Try a different name or email." : "Customers appear here after they register or purchase."}
+          />
         ) : (
-          <Table className={isPlaceholderData ? "opacity-60" : undefined}>
+          <Table className={cn("min-w-160 transition-opacity", isPlaceholderData && "opacity-60")}>
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead className="pl-4">Customer</TableHead>
-                <TableHead>Email status</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Account</TableHead>
                 <TableHead>Joined</TableHead>
                 <TableHead className="pr-4 text-right">Actions</TableHead>
@@ -109,23 +92,33 @@ export default function CustomersPage() {
               {data.items.map((u) => (
                 <TableRow key={u.id}>
                   <TableCell className="pl-4">
-                    <div className="font-medium">{u.name}</div>
-                    <div className="text-muted-foreground text-xs">{u.email}</div>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="size-8">
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">{initials(u.name)}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{u.name}</div>
+                        <div className="text-muted-foreground truncate text-xs">{u.email}</div>
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={u.emailVerified ? "secondary" : "outline"}>
-                      {u.emailVerified ? "Verified" : "Unverified"}
-                    </Badge>
+                    <StatusPill tone={u.emailVerified ? "success" : "muted"}>{u.emailVerified ? "Verified" : "Unverified"}</StatusPill>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={u.status === "active" ? "secondary" : "destructive"} className="capitalize">
+                    <StatusPill tone={u.status === "active" ? "success" : "destructive"} className="capitalize">
                       {u.status}
-                    </Badge>
+                    </StatusPill>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{dateFmt.format(new Date(u.createdAt))}</TableCell>
                   <TableCell className="pr-4 text-right">
                     {u.id !== me?.id && (
-                      <Button size="sm" variant={u.status === "active" ? "outline" : "secondary"} onClick={() => setTarget(u)}>
+                      <Button
+                        size="sm"
+                        variant={u.status === "active" ? "ghost" : "secondary"}
+                        className={u.status === "active" ? "text-destructive hover:text-destructive" : undefined}
+                        onClick={() => setTarget(u)}
+                      >
                         {u.status === "active" ? "Suspend" : "Reactivate"}
                       </Button>
                     )}
@@ -135,28 +128,15 @@ export default function CustomersPage() {
             </TableBody>
           </Table>
         )}
-      </Card>
-
-      {data && data.total > PAGE_SIZE && (
-        <div className="mt-4 flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">
-            Page {page} of {totalPages} · {data.total} customers
-          </span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-              Previous
-            </Button>
-            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
+        {data ? <AdminPager page={page} totalPages={totalPages} onPage={setPage} summary={`${data.total} customers`} /> : null}
+      </ListCard>
 
       <AlertDialog open={target !== null} onOpenChange={(open) => !open && setTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{suspending ? "Suspend" : "Reactivate"} {target?.name}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {suspending ? "Suspend" : "Reactivate"} {target?.name}?
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {suspending
                 ? "They will be signed out everywhere and won't be able to sign in or read their books until reactivated."

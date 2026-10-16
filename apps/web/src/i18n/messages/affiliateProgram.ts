@@ -1,0 +1,88 @@
+/** Public affiliate program marketing page (/affiliates). */
+const en = {
+  metaTitle: "Affiliate program",
+  metaDescription: "Promote eBooks with your own referral links and earn commission on verified sales.",
+  eyebrow: "ReadnShare affiliate program",
+  titleBefore: "Share books you believe in.",
+  titleAccent: "Get paid",
+  titleAfter: "for every sale.",
+  subtitle: "Join our affiliate program and earn a commission whenever your audience buys an eBook through your links.",
+  apply: "Apply now",
+  signIn: "Affiliate sign in",
+  free: "Free to join · Applications are usually reviewed within 2 business days",
+  stepsEyebrow: "How it works",
+  stepsTitle: "Start earning in three simple steps",
+  steps: [
+    { title: "Apply", body: "Tell us a little about where you'll share books. Our team reviews every application." },
+    { title: "Share your links", body: "Get a unique referral link for each eligible eBook and post it anywhere — WhatsApp, YouTube, Instagram, your blog." },
+    { title: "Earn on every sale", body: "When someone buys through your link, the commission is added to your ledger — ready for payout after the refund window." },
+  ],
+  featuresEyebrow: "Built for creators",
+  featuresTitle: "Everything you need to promote with confidence",
+  features: [
+    { title: "A link for every book", body: "Generate a unique referral link for each eligible eBook and share it anywhere." },
+    { title: "Real-time tracking", body: "See clicks, verified sales and conversion rates in your dashboard." },
+    { title: "Clear payouts", body: "Commissions move from pending to payable after the refund window. Request a payout any time." },
+    { title: "30-day attribution", body: "Readers can buy later — you still earn if they purchase within 30 days of their last click on your link." },
+  ],
+  rulesEyebrow: "The fine print, made simple",
+  rulesTitle: "Program rules",
+  rules: [
+    "Commission is earned only on verified, paid orders — never on clicks alone.",
+    "Attribution lasts 30 days from the visitor's most recent click on an affiliate link (last click wins).",
+    "The commission rate is set per eBook and shown before you promote it.",
+    "Refunded orders reverse the related commission.",
+    "Self-referrals (buying through your own link) are not eligible.",
+    "Payouts are reviewed and paid manually to your registered UPI ID or bank account.",
+  ],
+  exampleLabel: "Example",
+  example: "On a ₹1,000 eBook with a 20% commission, you earn ₹200 once the sale is verified and the refund window has passed.",
+  ctaTitle: "Ready to recommend your favourite books?",
+  ctaBody: "Applying takes just a few minutes. Once approved, your links are ready in your dashboard.",
+};
+
+export type AffiliateProgramMessages = typeof en;
+
+const hi: AffiliateProgramMessages = {
+  metaTitle: "एफ़िलिएट प्रोग्राम",
+  metaDescription: "अपने रेफ़रल लिंक से ई-बुक्स प्रमोट करें और हर वेरिफ़ाइड सेल पर कमीशन कमाएँ।",
+  eyebrow: "ReadnShare एफ़िलिएट प्रोग्राम",
+  titleBefore: "जिन किताबों पर भरोसा है, उन्हें शेयर करें।",
+  titleAccent: "हर सेल पर",
+  titleAfter: "कमाई करें।",
+  subtitle: "हमारे एफ़िलिएट प्रोग्राम से जुड़ें — जब भी आपके लिंक से कोई ई-बुक ख़रीदे, आपको कमीशन मिलेगा।",
+  apply: "अभी आवेदन करें",
+  signIn: "एफ़िलिएट साइन इन",
+  free: "जुड़ना बिल्कुल फ़्री · आवेदन आमतौर पर 2 कामकाजी दिनों में देखे जाते हैं",
+  stepsEyebrow: "यह कैसे काम करता है",
+  stepsTitle: "तीन आसान स्टेप में कमाई शुरू करें",
+  steps: [
+    { title: "आवेदन करें", body: "हमें थोड़ा बताइए कि आप किताबें कहाँ शेयर करेंगे। हमारी टीम हर आवेदन की जाँच करती है।" },
+    { title: "अपने लिंक शेयर करें", body: "हर योग्य ई-बुक के लिए अपना यूनिक रेफ़रल लिंक पाएँ और कहीं भी शेयर करें — WhatsApp, YouTube, Instagram या अपना ब्लॉग।" },
+    { title: "हर सेल पर कमाएँ", body: "आपके लिंक से ख़रीदारी होते ही कमीशन आपके लेजर में जुड़ जाता है — रिफ़ंड की अवधि के बाद पेआउट के लिए तैयार।" },
+  ],
+  featuresEyebrow: "क्रिएटर्स के लिए बना",
+  featuresTitle: "भरोसे के साथ प्रमोट करने के लिए सब कुछ",
+  features: [
+    { title: "हर किताब का अपना लिंक", body: "हर योग्य ई-बुक के लिए यूनिक रेफ़रल लिंक बनाएँ और कहीं भी शेयर करें।" },
+    { title: "रियल-टाइम ट्रैकिंग", body: "अपने डैशबोर्ड में क्लिक, वेरिफ़ाइड सेल और कन्वर्ज़न रेट देखें।" },
+    { title: "साफ़-सुथरे पेआउट", body: "रिफ़ंड की अवधि के बाद कमीशन पेंडिंग से पेएबल हो जाता है। जब चाहें पेआउट माँगें।" },
+    { title: "30 दिन का एट्रिब्यूशन", body: "पाठक बाद में भी ख़रीद सकते हैं — आपके लिंक पर आख़िरी क्लिक के 30 दिन के अंदर ख़रीदारी हुई, तो कमाई आपकी।" },
+  ],
+  rulesEyebrow: "शर्तें, आसान भाषा में",
+  rulesTitle: "प्रोग्राम के नियम",
+  rules: [
+    "कमीशन सिर्फ़ वेरिफ़ाइड और पेमेंट हो चुके ऑर्डर पर मिलता है — सिर्फ़ क्लिक पर नहीं।",
+    "एफ़िलिएट लिंक पर विज़िटर के आख़िरी क्लिक से 30 दिन तक एट्रिब्यूशन रहता है (आख़िरी क्लिक ही गिना जाता है)।",
+    "कमीशन रेट हर ई-बुक के लिए अलग तय होता है और प्रमोट करने से पहले दिखाया जाता है।",
+    "रिफ़ंड हुए ऑर्डर का कमीशन वापस ले लिया जाता है।",
+    "ख़ुद के लिंक से ख़रीदारी (सेल्फ़-रेफ़रल) पर कमीशन नहीं मिलता।",
+    "पेआउट की जाँच के बाद रकम आपके रजिस्टर्ड UPI ID या बैंक अकाउंट में भेजी जाती है।",
+  ],
+  exampleLabel: "उदाहरण",
+  example: "₹1,000 की ई-बुक पर 20% कमीशन हो, तो सेल वेरिफ़ाई होने और रिफ़ंड की अवधि पूरी होने के बाद आपको ₹200 मिलेंगे।",
+  ctaTitle: "अपनी पसंदीदा किताबें रिकमेंड करने के लिए तैयार हैं?",
+  ctaBody: "आवेदन में बस कुछ मिनट लगते हैं। मंज़ूरी मिलते ही आपके लिंक डैशबोर्ड में तैयार होंगे।",
+};
+
+export const affiliateProgram = { en, hi };

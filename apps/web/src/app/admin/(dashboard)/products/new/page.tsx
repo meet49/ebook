@@ -15,12 +15,12 @@ export default function NewProductPage() {
 
   return (
     <div className="max-w-3xl">
-      <Button asChild variant="ghost" size="sm" className="mb-2 -ml-2">
+      <Button asChild variant="ghost" size="sm" className="text-muted-foreground mb-3 -ml-2">
         <Link href="/admin/products">
           <ArrowLeft /> All eBooks
         </Link>
       </Button>
-      <PageHeader title="New eBook" description="Save the details first, then upload the cover and PDF." />
+      <PageHeader eyebrow="Store" title="New eBook" description="Save the details first, then upload the cover and PDF." />
       <ProductForm
         submitLabel="Create draft"
         onSubmit={async (input) => {

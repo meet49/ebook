@@ -13,6 +13,7 @@ import {
   Maximize,
   Minimize,
   Moon,
+  ShieldCheck,
   Sun,
   Trash2,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useMessages } from "@/i18n/client";
 import { errorMessage } from "@/lib/api";
 import { renderPageUrl } from "@/lib/pdf-client";
 import { saveProgress, useBookmarkMutations, type ReaderManifest } from "@/lib/reader";
@@ -33,11 +35,20 @@ const PRELOAD_AHEAD = 4;
 /** Pages are drawn at this CSS width (times the screen's pixel ratio, max 2x). */
 const RENDER_CSS_WIDTH = 900;
 
-function readPref(key: string): boolean {
+/** Ghost buttons on the reader's own light/dark surface: tint with the current text colour. */
+const READER_BUTTON = "hover:bg-current/10 hover:text-inherit dark:hover:bg-current/10";
+
+/** Site theme is the default until the reader picks a mode of its own. */
+function siteIsDark(): boolean {
+  return typeof document !== "undefined" && document.documentElement.classList.contains("dark");
+}
+
+function readPref(key: string, fallback: () => boolean): boolean {
   try {
-    return localStorage.getItem(key) === "1";
+    const value = localStorage.getItem(key);
+    return value === null ? fallback() : value === "1";
   } catch {
-    return false;
+    return fallback();
   }
 }
 
@@ -58,10 +69,13 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
   const warnedRef = useRef(false);
   // Captured once: later manifest updates (e.g. bookmarks) must not rebuild the book.
   const startPageRef = useRef(startPage);
+  const t = useMessages().reader;
+  // Strings used inside the page-building effect and render queue, read without making them dependencies.
+  const textRef = useRef(t);
 
   const [page, setPage] = useState(startPage);
   const [spread, setSpread] = useState(false);
-  const [dark, setDark] = useState(() => readPref("reader:dark"));
+  const [dark, setDark] = useState(() => readPref("reader:dark", siteIsDark));
   const [fullscreen, setFullscreen] = useState(false);
   const [panel, setPanel] = useState<"contents" | "bookmarks" | null>(null);
   const { add, remove } = useBookmarkMutations(manifest.slug, manifest.productId);
@@ -98,7 +112,7 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
             rendered.current.delete(n);
             if (!warnedRef.current) {
               warnedRef.current = true;
-              toast.error("A page could not be displayed. Try reopening the book.");
+              toast.error(textRef.current.pageError);
             }
           }
         });
@@ -135,7 +149,7 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
       el.className = "reader-page";
       if (n === 1 || n === total) el.dataset.density = "hard";
       const img = document.createElement("img");
-      img.alt = `Page ${n}`;
+      img.alt = textRef.current.page(n);
       img.draggable = false;
       img.decoding = "async";
       el.appendChild(img);
@@ -226,7 +240,7 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
       if (document.fullscreenElement) await document.exitFullscreen();
       else await wrapperRef.current?.requestFullscreen();
     } catch {
-      toast.error("Full screen isn't available in this browser.");
+      toast.error(t.fullscreenUnavailable);
     }
   };
 
@@ -240,7 +254,8 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
   // In two-page view the visible pair is [page, page + 1] (the cover sits alone).
   const visible = spread && page > 1 && page < total ? [page, page + 1] : [page];
   const bookmark = manifest.bookmarks.find((b) => visible.includes(b.page));
-  const pageLabel = visible.length === 2 ? `Pages ${visible[0]}–${visible[1]}` : `Page ${page}`;
+  const pageLabel = visible.length === 2 ? t.pages(visible[0]!, visible[1]!) : t.page(page);
+  const percent = Math.round((page / total) * 100);
 
   return (
     <div
@@ -248,33 +263,38 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
       className={cn("reader-root flex h-dvh flex-col select-none", dark ? "reader-dark bg-neutral-950 text-neutral-100" : "bg-neutral-100 text-neutral-900")}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <header className={cn("flex h-14 shrink-0 items-center gap-2 border-b px-2 sm:px-4", dark ? "border-white/10" : "border-black/5 bg-white/70")}>
-        <Button asChild variant="ghost" size="icon-lg" aria-label="Back to library">
+      <header
+        className={cn(
+          "relative z-20 flex h-14 shrink-0 items-center gap-1 border-b px-2 backdrop-blur-md sm:gap-2 sm:px-4",
+          dark ? "border-white/10 bg-neutral-900/80" : "border-black/5 bg-white/80",
+        )}
+      >
+        <Button asChild variant="ghost" size="icon-lg" aria-label={t.back} className={READER_BUTTON}>
           <Link href="/library">
             <ArrowLeft />
           </Link>
         </Button>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{manifest.title}</p>
+        <div className="min-w-0 flex-1 px-1">
+          <p className="truncate text-sm leading-tight font-semibold">{manifest.title}</p>
           <p className="truncate text-xs opacity-60">{manifest.author}</p>
         </div>
-        <ToolbarButton label="Contents and bookmarks" onClick={() => setPanel("contents")}>
+        <ToolbarButton label={t.contents} onClick={() => setPanel("contents")}>
           <List />
         </ToolbarButton>
         <ToolbarButton
-          label={bookmark ? "Remove bookmark" : "Bookmark this page"}
+          label={bookmark ? t.removeBookmark : t.addBookmark}
           onClick={() =>
             bookmark
               ? remove.mutate(bookmark.id, { onError: (e) => toast.error(errorMessage(e)) })
-              : add.mutate({ page: visible[0]!, label: "" }, { onSuccess: () => toast.success(`Bookmarked page ${visible[0]}`), onError: (e) => toast.error(errorMessage(e)) })
+              : add.mutate({ page: visible[0]!, label: "" }, { onSuccess: () => toast.success(t.bookmarked(visible[0]!)), onError: (e) => toast.error(errorMessage(e)) })
           }
         >
           {bookmark ? <BookmarkCheck className="text-primary" /> : <Bookmark />}
         </ToolbarButton>
-        <ToolbarButton label={dark ? "Light mode" : "Dark mode"} onClick={toggleDark}>
+        <ToolbarButton label={dark ? t.lightMode : t.darkMode} onClick={toggleDark}>
           {dark ? <Sun /> : <Moon />}
         </ToolbarButton>
-        <ToolbarButton label={fullscreen ? "Exit full screen" : "Full screen"} onClick={() => void toggleFullscreen()}>
+        <ToolbarButton label={fullscreen ? t.exitFullscreen : t.fullscreen} onClick={() => void toggleFullscreen()}>
           {fullscreen ? <Minimize /> : <Maximize />}
         </ToolbarButton>
       </header>
@@ -284,10 +304,13 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
           type="button"
           onClick={() => flipRef.current?.flipPrev()}
           disabled={page <= 1}
-          className="absolute top-1/2 left-1 z-10 hidden -translate-y-1/2 rounded-full p-2 opacity-60 transition hover:opacity-100 disabled:opacity-20 sm:block"
-          aria-label="Previous page"
+          className={cn(
+            "absolute top-1/2 left-2 z-10 hidden -translate-y-1/2 rounded-full p-2 opacity-60 shadow-sm ring-1 transition hover:opacity-100 disabled:pointer-events-none disabled:opacity-20 sm:block",
+            dark ? "bg-white/5 ring-white/10" : "bg-white/70 ring-black/5",
+          )}
+          aria-label={t.previous}
         >
-          <ChevronLeft className="size-7" />
+          <ChevronLeft className="size-6" />
         </button>
         <div className="flex h-full w-full max-w-300 items-center justify-center">
           <div ref={bookRef} data-reader-book className="flex h-full w-full items-center justify-center" />
@@ -296,15 +319,30 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
           type="button"
           onClick={() => flipRef.current?.flipNext()}
           disabled={page >= total}
-          className="absolute top-1/2 right-1 z-10 hidden -translate-y-1/2 rounded-full p-2 opacity-60 transition hover:opacity-100 disabled:opacity-20 sm:block"
-          aria-label="Next page"
+          className={cn(
+            "absolute top-1/2 right-2 z-10 hidden -translate-y-1/2 rounded-full p-2 opacity-60 shadow-sm ring-1 transition hover:opacity-100 disabled:pointer-events-none disabled:opacity-20 sm:block",
+            dark ? "bg-white/5 ring-white/10" : "bg-white/70 ring-black/5",
+          )}
+          aria-label={t.next}
         >
-          <ChevronRight className="size-7" />
+          <ChevronRight className="size-6" />
         </button>
       </main>
 
-      <footer className={cn("flex shrink-0 items-center gap-3 border-t px-3 py-2 sm:px-6", dark ? "border-white/10" : "border-black/5 bg-white/70")}>
-        <Button variant="ghost" size="icon-lg" onClick={() => flipRef.current?.flipPrev()} disabled={page <= 1} aria-label="Previous page" className="sm:hidden">
+      <footer
+        className={cn(
+          "flex shrink-0 items-center gap-2 border-t px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:gap-4 sm:px-6",
+          dark ? "border-white/10 bg-neutral-900/80" : "border-black/5 bg-white/80",
+        )}
+      >
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          onClick={() => flipRef.current?.flipPrev()}
+          disabled={page <= 1}
+          aria-label={t.previous}
+          className={cn("sm:hidden", READER_BUTTON)}
+        >
           <ChevronLeft />
         </Button>
         <input
@@ -315,13 +353,27 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
           onChange={(e) => setPage(Number(e.target.value))}
           onPointerUp={(e) => goTo(Number((e.target as HTMLInputElement).value))}
           onKeyUp={(e) => (e.key === "Enter" || e.key.startsWith("Arrow")) && goTo(Number((e.target as HTMLInputElement).value))}
-          className="accent-primary h-1.5 flex-1 cursor-pointer"
-          aria-label="Go to page"
+          className="accent-primary h-1.5 min-w-0 flex-1 cursor-pointer"
+          aria-label={t.goToPage}
+          aria-valuetext={t.position(pageLabel, total, percent)}
         />
-        <span className="min-w-28 text-right text-xs tabular-nums opacity-70" aria-live="polite">
-          {pageLabel} of {total} · {Math.round((page / total) * 100)}%
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-right text-xs font-medium tabular-nums",
+            dark ? "bg-white/10 text-neutral-200" : "bg-black/5 text-neutral-700",
+          )}
+          aria-live="polite"
+        >
+          {t.position(pageLabel, total, percent)}
         </span>
-        <Button variant="ghost" size="icon-lg" onClick={() => flipRef.current?.flipNext()} disabled={page >= total} aria-label="Next page" className="sm:hidden">
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          onClick={() => flipRef.current?.flipNext()}
+          disabled={page >= total}
+          aria-label={t.next}
+          className={cn("sm:hidden", READER_BUTTON)}
+        >
           <ChevronRight />
         </Button>
       </footer>
@@ -330,25 +382,32 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
         <SheetContent side="left" className="w-80 p-0">
           <SheetHeader className="border-b">
             <SheetTitle>{manifest.title}</SheetTitle>
-            <SheetDescription>Jump to a chapter or bookmark.</SheetDescription>
+            <SheetDescription>{t.panelDescription}</SheetDescription>
+            <p className="text-muted-foreground flex items-center gap-1.5 pt-1 text-xs">
+              <ShieldCheck className="text-success size-3.5 shrink-0" aria-hidden />
+              {t.personalCopy}
+            </p>
           </SheetHeader>
           <Tabs value={panel ?? "contents"} onValueChange={(v) => setPanel(v as "contents" | "bookmarks")} className="px-3">
             <TabsList className="w-full">
-              <TabsTrigger value="contents">Contents</TabsTrigger>
-              <TabsTrigger value="bookmarks">Bookmarks ({manifest.bookmarks.length})</TabsTrigger>
+              <TabsTrigger value="contents">{t.tabContents}</TabsTrigger>
+              <TabsTrigger value="bookmarks">{t.tabBookmarks(manifest.bookmarks.length)}</TabsTrigger>
             </TabsList>
-            <TabsContent value="contents" className="max-h-[calc(100dvh-170px)] overflow-y-auto">
+            <TabsContent value="contents" className="max-h-[calc(100dvh-190px)] overflow-y-auto">
               {manifest.toc.length ? (
                 <ul className="py-2">
-                  {manifest.toc.map((t, i) => (
-                    <li key={`${t.page}-${i}`}>
+                  {manifest.toc.map((entry, i) => (
+                    <li key={`${entry.page}-${i}`}>
                       <button
                         type="button"
-                        onClick={() => goTo(t.page)}
-                        className={cn("hover:bg-muted flex w-full justify-between gap-3 rounded-md px-2 py-2 text-left text-sm", t.title.startsWith("— ") && "pl-5 opacity-80")}
+                        onClick={() => goTo(entry.page)}
+                        className={cn(
+                          "hover:bg-muted flex w-full justify-between gap-3 rounded-lg px-2.5 py-2 text-left text-sm transition-colors",
+                          entry.title.startsWith("— ") && "pl-5 opacity-80",
+                        )}
                       >
-                        <span>{t.title}</span>
-                        <span className="text-muted-foreground tabular-nums">{t.page}</span>
+                        <span>{entry.title}</span>
+                        <span className="text-muted-foreground tabular-nums">{entry.page}</span>
                       </button>
                     </li>
                   ))}
@@ -357,23 +416,35 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
                 <GoToPage total={total} onGo={goTo} />
               )}
             </TabsContent>
-            <TabsContent value="bookmarks" className="max-h-[calc(100dvh-170px)] overflow-y-auto">
+            <TabsContent value="bookmarks" className="max-h-[calc(100dvh-190px)] overflow-y-auto">
               {manifest.bookmarks.length ? (
                 <ul className="py-2">
                   {manifest.bookmarks.map((b) => (
                     <li key={b.id} className="flex items-center gap-1">
-                      <button type="button" onClick={() => goTo(b.page)} className="hover:bg-muted flex-1 rounded-md px-2 py-2 text-left text-sm">
-                        Page {b.page}
-                        {b.label ? <span className="text-muted-foreground"> · {b.label}</span> : null}
+                      <button
+                        type="button"
+                        onClick={() => goTo(b.page)}
+                        className="hover:bg-muted flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors"
+                      >
+                        <span className="bg-accent text-accent-foreground shrink-0 rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums">
+                          {t.page(b.page)}
+                        </span>
+                        {b.label ? <span className="text-muted-foreground truncate">{b.label}</span> : null}
                       </button>
-                      <Button variant="ghost" size="icon-sm" aria-label={`Remove bookmark on page ${b.page}`} onClick={() => remove.mutate(b.id)}>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-muted-foreground hover:text-destructive"
+                        aria-label={t.removeBookmarkOn(b.page)}
+                        onClick={() => remove.mutate(b.id)}
+                      >
                         <Trash2 />
                       </Button>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted-foreground px-2 py-6 text-sm">No bookmarks yet. Use the bookmark button in the top bar to save a page.</p>
+                <p className="text-muted-foreground px-2 py-6 text-sm leading-relaxed">{t.noBookmarks}</p>
               )}
             </TabsContent>
           </Tabs>
@@ -387,7 +458,7 @@ function ToolbarButton({ label, onClick, children }: { label: string; onClick: (
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-lg" onClick={onClick} aria-label={label}>
+        <Button variant="ghost" size="icon-lg" onClick={onClick} aria-label={label} className={READER_BUTTON}>
           {children}
         </Button>
       </TooltipTrigger>
@@ -397,6 +468,7 @@ function ToolbarButton({ label, onClick, children }: { label: string; onClick: (
 }
 
 function GoToPage({ total, onGo }: { total: number; onGo: (n: number) => void }) {
+  const t = useMessages().reader;
   const [value, setValue] = useState("");
   return (
     <form
@@ -413,12 +485,12 @@ function GoToPage({ total, onGo }: { total: number; onGo: (n: number) => void })
         max={total}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder={`Page 1–${total}`}
-        className="border-input bg-background h-9 flex-1 rounded-lg border px-3 text-sm"
-        aria-label="Page number"
+        placeholder={t.pageRange(total)}
+        className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 h-9 min-w-0 flex-1 rounded-lg border px-3 text-sm outline-none focus-visible:ring-[3px]"
+        aria-label={t.pageNumber}
       />
-      <Button type="submit" size="sm">
-        Go
+      <Button type="submit" size="sm" className="h-9">
+        {t.go}
       </Button>
     </form>
   );

@@ -6,8 +6,21 @@ affiliate program with an auditable commission ledger.
 | Part | Stack |
 |---|---|
 | `apps/web` | Next.js 16 (App Router), TypeScript, Tailwind CSS 4, shadcn/ui, TanStack Query, React Hook Form + Zod, Framer Motion, page-flip |
-| `apps/api` | Node.js, Express 5, TypeScript, MongoDB + Mongoose 9, Razorpay, pdfjs + canvas (worker thread), sharp |
+| `apps/api` | Node.js, Express 5, TypeScript, MongoDB + Mongoose 9, Razorpay, pdf-lib + pdfjs, sharp |
 | `packages/shared` | Zod schemas, enums, money helpers and types shared by both apps |
+
+The web app is an installable PWA, works in English and Hindi, and has light, dark and system
+themes.
+
+- **Languages.** UI strings live in `apps/web/src/i18n/messages/<area>.ts`, one file per area,
+  each exporting `{ en, hi }` with `hi` typed as `typeof en` (a missing Hindi string is a type
+  error). The choice is stored in the `rns_locale` cookie, so server-rendered pages use it too;
+  without it, browsers that prefer Hindi get Hindi. Admin pages are English only. Product data
+  and API error messages are not translated.
+- **PWA.** `src/app/manifest.ts`, icons in `public/icons` (regenerate with
+  `node scripts/make-icons.mjs` in `apps/web`) and `public/sw.js`. The service worker is
+  registered in production only. It caches only immutable build assets and an offline page,
+  never `/api` responses or HTML pages.
 
 Docs: [Architecture & plan](docs/ARCHITECTURE.md) · [API reference](docs/API.md) ·
 [Deploy on Render](docs/DEPLOY-RENDER.md) · [Deployment checklist](docs/DEPLOYMENT.md) · [Progress & known limitations](docs/PROGRESS.md)
@@ -93,7 +106,7 @@ directly. Production requires private S3-compatible storage.
 | `npm test` | Run all test suites (API tests use an in-memory MongoDB replica set) |
 | `npm run typecheck` | Type-check every workspace |
 | `npm run lint` | Lint the web app |
-| `npm run build` | Production builds (API bundle + PDF worker via esbuild, then the Next.js build) |
+| `npm run build` | Production builds (API bundle via esbuild, then the Next.js build) |
 | `npm run seed:admin` | Create or promote the admin from the `SEED_ADMIN_*` env vars |
 
 ## Security notes

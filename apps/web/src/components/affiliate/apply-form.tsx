@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Info, UserRound } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { useMessages } from "@/i18n/client";
 import { useAffiliateProfile, affiliateProfileKey } from "@/lib/affiliate";
 import { api } from "@/lib/api";
 import { meQueryKey, useMe } from "@/lib/auth";
@@ -34,9 +35,17 @@ type Values = AffiliateSignupInput;
 /** Signed-in applicants already have an account: account fields are not validated. */
 const signedInSchema = affiliateSignupSchema.extend({ name: z.string(), email: z.string(), password: z.string() });
 
+function SectionTitle({ children }: { children: string }) {
+  return <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">{children}</p>;
+}
+
 export function AffiliateApplyForm() {
   const router = useRouter();
   const qc = useQueryClient();
+  const messages = useMessages();
+  const t = messages.affiliate;
+  const f = t.form;
+  const validation = messages.common.validation;
   const { data: user, isPending: userPending } = useMe();
   const { data: profile, isPending: profilePending } = useAffiliateProfile(Boolean(user));
 
@@ -46,21 +55,21 @@ export function AffiliateApplyForm() {
     defaultValues: { name: "", email: "", password: "", website: "", channels: [], promotionPlan: "" },
   });
 
-  if (userPending || (user && profilePending)) return <Skeleton className="h-96" />;
+  if (userPending || (user && profilePending)) return <Skeleton className="h-96 rounded-xl" />;
 
   if (profile && profile.status !== "rejected") {
     return (
-      <div className="space-y-4 text-center">
-        <CheckCircle2 className="text-success mx-auto size-10" aria-hidden />
-        <p>
-          {profile.status === "pending"
-            ? "Your application is under review. We'll email you when it's approved."
-            : profile.status === "approved"
-              ? "You're already an approved affiliate."
-              : "Your affiliate account is currently suspended."}
+      <div className="space-y-5 py-4 text-center">
+        <span className="bg-success/10 text-success mx-auto flex size-14 items-center justify-center rounded-2xl">
+          <CheckCircle2 className="size-7" aria-hidden />
+        </span>
+        <p className="text-balance">
+          {profile.status === "pending" ? f.alreadyPending : profile.status === "approved" ? f.alreadyApproved : f.alreadySuspended}
         </p>
-        <Button asChild className="w-full">
-          <Link href="/affiliate">Go to affiliate dashboard</Link>
+        <Button asChild size="lg" className="w-full">
+          <Link href="/affiliate">
+            {f.goToDashboard} <ArrowRight />
+          </Link>
         </Button>
       </div>
     );
@@ -73,46 +82,60 @@ export function AffiliateApplyForm() {
         : values;
       await api("/affiliate/apply", { method: "POST", body });
       await Promise.all([qc.invalidateQueries({ queryKey: meQueryKey }), qc.invalidateQueries({ queryKey: affiliateProfileKey })]);
-      toast.success("Application submitted! We'll review it shortly.");
+      toast.success(f.submitted);
       router.replace("/affiliate");
     } catch (err) {
       handleFormError(err, form.setError);
     }
   });
 
+  const translateError = (message?: string) => (message ? (validation[message] ?? message) : message);
+
   return (
     <form noValidate onSubmit={submit} className="space-y-6">
       {profile?.status === "rejected" && (
-        <p className="bg-muted rounded-lg p-3 text-sm">
-          Your previous application was not approved{profile.reviewNote ? `: ${profile.reviewNote}` : "."} You can update it and apply again.
+        <p className="bg-warning/10 border-warning/25 flex gap-2.5 rounded-xl border p-3 text-sm">
+          <Info className="text-warning mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>
+            {f.previousRejected(profile.reviewNote)} {f.applyAgainHint}
+          </span>
         </p>
       )}
       <FieldGroup>
         {user ? (
-          <p className="text-muted-foreground text-sm">
-            Applying as <span className="text-foreground font-medium">{user.email}</span>
-          </p>
+          <div className="bg-muted/60 flex items-center gap-3 rounded-xl p-3 text-sm">
+            <span className="bg-background flex size-9 shrink-0 items-center justify-center rounded-lg border">
+              <UserRound className="text-muted-foreground size-4" aria-hidden />
+            </span>
+            <p className="min-w-0">
+              <span className="text-muted-foreground block text-xs">{f.applyingAs}</span>
+              <span className="block truncate font-medium">{user.email}</span>
+            </p>
+          </div>
         ) : (
           <>
-            <FormField control={form.control} name="name" label="Full name">
+            <SectionTitle>{f.accountSection}</SectionTitle>
+            <FormField control={form.control} name="name" label={f.name}>
               {({ field, id, invalid }) => <Input id={id} autoComplete="name" aria-invalid={invalid} {...field} />}
             </FormField>
-            <FormField control={form.control} name="email" label="Email">
+            <FormField control={form.control} name="email" label={f.email}>
               {({ field, id, invalid }) => <Input id={id} type="email" autoComplete="email" aria-invalid={invalid} {...field} />}
             </FormField>
-            <FormField control={form.control} name="password" label="Password" description="At least 8 characters, with a letter and a number.">
+            <FormField control={form.control} name="password" label={f.password} description={f.passwordHint}>
               {({ field, id, invalid }) => <PasswordInput id={id} autoComplete="new-password" aria-invalid={invalid} {...field} />}
             </FormField>
             <p className="text-muted-foreground text-sm">
-              Already have an account?{" "}
+              {f.haveAccount}{" "}
               <Link href="/affiliate/login?next=/affiliate/apply" className="text-primary font-medium hover:underline">
-                Sign in first
+                {f.signInFirst}
               </Link>
             </p>
           </>
         )}
 
-        <FormField control={form.control} name="website" label="Website or main profile URL" description="Optional.">
+        <SectionTitle>{f.audienceSection}</SectionTitle>
+
+        <FormField control={form.control} name="website" label={f.website} description={f.optional}>
           {({ field, id, invalid }) => <Input id={id} type="url" placeholder="https://" aria-invalid={invalid} {...field} />}
         </FormField>
 
@@ -121,25 +144,29 @@ export function AffiliateApplyForm() {
           name="channels"
           render={({ field, fieldState }) => (
             <FieldSet data-invalid={fieldState.invalid}>
-              <FieldLegend variant="label">Where will you promote?</FieldLegend>
+              <FieldLegend variant="label">{f.channels}</FieldLegend>
               <div className="grid grid-cols-2 gap-2">
                 {AFFILIATE_CHANNELS.map((c) => {
                   const checked = field.value.includes(c);
                   return (
-                    <Field key={c} orientation="horizontal">
+                    <Field
+                      key={c}
+                      orientation="horizontal"
+                      className="has-data-[state=checked]:border-primary/50 has-data-[state=checked]:bg-primary/5 hover:bg-muted/60 rounded-lg border px-3 py-2.5 transition-colors"
+                    >
                       <Checkbox
                         id={`ch-${c}`}
                         checked={checked}
                         onCheckedChange={(v) => field.onChange(v ? [...field.value, c] : field.value.filter((x) => x !== c))}
                       />
                       <FieldLabel htmlFor={`ch-${c}`} className="font-normal">
-                        {c}
+                        {t.channels[c] ?? c}
                       </FieldLabel>
                     </Field>
                   );
                 })}
               </div>
-              {fieldState.error ? <FieldError errors={[fieldState.error]} /> : null}
+              {fieldState.error ? <FieldError errors={[{ message: translateError(fieldState.error.message) }]} /> : null}
             </FieldSet>
           )}
         />
@@ -149,25 +176,25 @@ export function AffiliateApplyForm() {
           name="audienceSize"
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="audienceSize">Audience size</FieldLabel>
+              <FieldLabel htmlFor="audienceSize">{f.audience}</FieldLabel>
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger id="audienceSize" className="w-full" aria-invalid={fieldState.invalid}>
-                  <SelectValue placeholder="Choose one" />
+                  <SelectValue placeholder={f.chooseOne} />
                 </SelectTrigger>
                 <SelectContent>
                   {AUDIENCE_SIZES.map((s) => (
                     <SelectItem key={s} value={s}>
-                      {s}
+                      {t.audience[s] ?? s}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {fieldState.error ? <FieldError errors={[{ message: "Choose your audience size" }]} /> : null}
+              {fieldState.error ? <FieldError errors={[{ message: f.chooseAudience }]} /> : null}
             </Field>
           )}
         />
 
-        <FormField control={form.control} name="promotionPlan" label="How will you promote our eBooks?">
+        <FormField control={form.control} name="promotionPlan" label={f.plan} description={f.planHint}>
           {({ field, id, invalid }) => <Textarea id={id} rows={4} aria-invalid={invalid} {...field} />}
         </FormField>
 
@@ -175,27 +202,27 @@ export function AffiliateApplyForm() {
           control={form.control}
           name="acceptTerms"
           render={({ field, fieldState }) => (
-            <Field orientation="horizontal" data-invalid={fieldState.invalid}>
+            <Field orientation="horizontal" data-invalid={fieldState.invalid} className="bg-muted/40 rounded-xl p-3">
               <Checkbox id="acceptTerms" checked={field.value === true} onCheckedChange={(v) => field.onChange(v === true)} />
-              <FieldLabel htmlFor="acceptTerms" className="font-normal">
-                I agree to the{" "}
-                <Link href="/affiliates" className="underline" target="_blank">
-                  affiliate program rules
-                </Link>{" "}
-                and{" "}
-                <Link href="/legal/terms" className="underline" target="_blank">
-                  terms
+              <FieldLabel htmlFor="acceptTerms" className="block font-normal">
+                {f.termsPrefix}
+                <Link href="/affiliates" className="underline underline-offset-2" target="_blank">
+                  {f.termsRules}
                 </Link>
-                .
+                {f.termsAnd}
+                <Link href="/legal/terms" className="underline underline-offset-2" target="_blank">
+                  {f.termsLink}
+                </Link>
+                {f.termsSuffix}
               </FieldLabel>
-              {fieldState.error ? <FieldError errors={[fieldState.error]} /> : null}
+              {fieldState.error ? <FieldError errors={[{ message: translateError(fieldState.error.message) }]} /> : null}
             </Field>
           )}
         />
       </FieldGroup>
       <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting}>
         {form.formState.isSubmitting ? <Spinner /> : null}
-        Submit application
+        {f.submit}
       </Button>
     </form>
   );

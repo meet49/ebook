@@ -1,24 +1,23 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { UsersRound } from "lucide-react";
+import { ChevronDown, UsersRound } from "lucide-react";
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { formatINR, type AffiliateStatus, type Paginated } from "@ebook/shared";
+import { FilterPills, ListCard, StatusPill, type PillTone } from "@/components/dashboard/list-ui";
 import { PageHeader } from "@/components/layout/dashboard-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { AffiliateProfileDto } from "@/lib/affiliate";
 import { api, errorMessage } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { AdminPager, ListEmpty, ListSkeleton } from "../_components/admin-list";
 
 interface AdminAffiliate extends AffiliateProfileDto {
   user: { name: string; email: string };
@@ -36,12 +35,20 @@ const DECISION_TEXT: Record<Decision, { title: string; body: string; label: stri
 
 const DONE: Record<Decision, string> = { approve: "Affiliate approved", reject: "Application rejected", suspend: "Affiliate suspended", reinstate: "Affiliate reinstated" };
 
-const STATUS_STYLE: Record<AffiliateStatus, string> = {
-  pending: "bg-warning/15 text-warning border-warning/20",
-  approved: "bg-success/15 text-success border-success/20",
-  rejected: "bg-muted text-muted-foreground",
-  suspended: "bg-destructive/10 text-destructive border-destructive/20",
+const STATUS_TONE: Record<AffiliateStatus, PillTone> = {
+  pending: "warning",
+  approved: "success",
+  rejected: "muted",
+  suspended: "destructive",
 };
+
+const FILTERS: { value: AffiliateStatus | "all"; label: string }[] = [
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "suspended", label: "Suspended" },
+  { value: "rejected", label: "Rejected" },
+  { value: "all", label: "All" },
+];
 
 export default function AdminAffiliatesPage() {
   const qc = useQueryClient();
@@ -68,37 +75,40 @@ export default function AdminAffiliatesPage() {
   });
 
   const text = action ? DECISION_TEXT[action.decision] : null;
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
   return (
     <>
-      <PageHeader title="Affiliates" description="Review applications and manage affiliate partners." />
-      <Tabs value={status} onValueChange={(v) => { setStatus(v as AffiliateStatus | "all"); setPage(1); }} className="mb-4">
-        <TabsList>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="approved">Approved</TabsTrigger>
-          <TabsTrigger value="suspended">Suspended</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-          <TabsTrigger value="all">All</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <PageHeader eyebrow="Partners" title="Affiliates" description="Review applications and manage affiliate partners. Select a name to see the full application." />
 
-      <Card className="overflow-hidden py-0">
+      <ListCard
+        toolbar={
+          <>
+            <FilterPills
+              label="Filter by status"
+              value={status}
+              onChange={(v) => {
+                setStatus(v);
+                setPage(1);
+              }}
+              options={FILTERS}
+            />
+            {data ? <p className="text-muted-foreground shrink-0 text-sm">{data.total} affiliates</p> : null}
+          </>
+        }
+      >
         {isPending ? (
-          <Skeleton className="m-4 h-40" />
+          <ListSkeleton rows={4} />
         ) : !data?.items.length ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <UsersRound />
-              </EmptyMedia>
-              <EmptyTitle>{status === "pending" ? "No applications waiting" : "No affiliates here"}</EmptyTitle>
-              <EmptyDescription>Applications from /affiliate/apply appear in Pending.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <ListEmpty
+            icon={UsersRound}
+            title={status === "pending" ? "No applications waiting" : "No affiliates here"}
+            description="Applications from /affiliate/apply appear in Pending."
+          />
         ) : (
-          <Table className={isPlaceholderData ? "opacity-60" : undefined}>
+          <Table className={cn("min-w-200 transition-opacity", isPlaceholderData && "opacity-60")}>
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead className="pl-4">Affiliate</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Channels</TableHead>
@@ -109,73 +119,132 @@ export default function AdminAffiliatesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.items.map((a) => (
-                <Fragment key={a.id}>
-                  <TableRow>
-                    <TableCell className="pl-4">
-                      <button type="button" className="text-left hover:underline" onClick={() => setExpanded(expanded === a.id ? null : a.id)} aria-expanded={expanded === a.id}>
-                        <span className="font-medium">{a.user.name}</span>
-                        <span className="text-muted-foreground block text-xs">
-                          {a.user.email} · {a.code}
-                        </span>
-                      </button>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`capitalize ${STATUS_STYLE[a.status]}`}>
-                        {a.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-48 truncate text-sm">{a.application.channels.join(", ")}</TableCell>
-                    <TableCell className="text-right tabular-nums">{a.stats.clicks}</TableCell>
-                    <TableCell className="text-right tabular-nums">{a.stats.sales}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatINR(a.stats.earnedPaise)}</TableCell>
-                    <TableCell className="space-x-1 pr-4 text-right whitespace-nowrap">
-                      {a.status === "pending" && (
-                        <>
-                          <Button size="sm" onClick={() => setAction({ affiliate: a, decision: "approve" })}>Approve</Button>
-                          <Button size="sm" variant="outline" onClick={() => setAction({ affiliate: a, decision: "reject" })}>Reject</Button>
-                        </>
-                      )}
-                      {a.status === "approved" && <Button size="sm" variant="outline" onClick={() => setAction({ affiliate: a, decision: "suspend" })}>Suspend</Button>}
-                      {a.status === "suspended" && <Button size="sm" variant="outline" onClick={() => setAction({ affiliate: a, decision: "reinstate" })}>Reinstate</Button>}
-                      {a.status === "rejected" && <Button size="sm" variant="outline" onClick={() => setAction({ affiliate: a, decision: "approve" })}>Approve</Button>}
-                    </TableCell>
-                  </TableRow>
-                  {expanded === a.id && (
-                    <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableCell colSpan={7} className="px-4 py-3 text-sm whitespace-normal">
-                        <dl className="grid gap-2 sm:grid-cols-[140px_1fr]">
-                          <dt className="text-muted-foreground">Website</dt>
-                          <dd>{a.application.website ? <a href={a.application.website} target="_blank" rel="noopener noreferrer nofollow" className="text-primary hover:underline">{a.application.website}</a> : "—"}</dd>
-                          <dt className="text-muted-foreground">Audience</dt>
-                          <dd>{a.application.audienceSize}</dd>
-                          <dt className="text-muted-foreground">Promotion plan</dt>
-                          <dd className="whitespace-pre-line">{a.application.promotionPlan}</dd>
-                          <dt className="text-muted-foreground">Payout method</dt>
-                          <dd>{a.payout ? (a.payout.method === "upi" ? `UPI ${a.payout.upiId}` : `Bank ••••${a.payout.accountNumberLast4}`) : "Not set"}</dd>
-                          {a.reviewNote ? (<><dt className="text-muted-foreground">Review note</dt><dd>{a.reviewNote}</dd></>) : null}
-                        </dl>
+              {data.items.map((a) => {
+                const open = expanded === a.id;
+                return (
+                  <Fragment key={a.id}>
+                    <TableRow className={cn(open && "bg-muted/40 border-b-0")}>
+                      <TableCell className="pl-4">
+                        <button
+                          type="button"
+                          className="focus-visible:ring-ring/50 group flex items-start gap-2 rounded text-left outline-none focus-visible:ring-3"
+                          onClick={() => setExpanded(open ? null : a.id)}
+                          aria-expanded={open}
+                        >
+                          <ChevronDown className={cn("text-muted-foreground mt-0.5 size-4 shrink-0 transition-transform", open && "rotate-180")} aria-hidden />
+                          <span>
+                            <span className="font-medium group-hover:underline">{a.user.name}</span>
+                            <span className="text-muted-foreground block text-xs">
+                              {a.user.email} · <span className="font-mono">{a.code}</span>
+                            </span>
+                          </span>
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        <StatusPill tone={STATUS_TONE[a.status]} className="capitalize">
+                          {a.status}
+                        </StatusPill>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex max-w-56 flex-wrap gap-1">
+                          {a.application.channels.slice(0, 3).map((c) => (
+                            <Badge key={c} variant="secondary" className="font-normal">
+                              {c}
+                            </Badge>
+                          ))}
+                          {a.application.channels.length > 3 ? (
+                            <Badge variant="outline" className="font-normal">
+                              +{a.application.channels.length - 3}
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{a.stats.clicks}</TableCell>
+                      <TableCell className="text-right tabular-nums">{a.stats.sales}</TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">{formatINR(a.stats.earnedPaise)}</TableCell>
+                      <TableCell className="space-x-1 pr-4 text-right whitespace-nowrap">
+                        {a.status === "pending" && (
+                          <>
+                            <Button size="sm" onClick={() => setAction({ affiliate: a, decision: "approve" })}>
+                              Approve
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setAction({ affiliate: a, decision: "reject" })}>
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                        {a.status === "approved" && (
+                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setAction({ affiliate: a, decision: "suspend" })}>
+                            Suspend
+                          </Button>
+                        )}
+                        {a.status === "suspended" && (
+                          <Button size="sm" variant="outline" onClick={() => setAction({ affiliate: a, decision: "reinstate" })}>
+                            Reinstate
+                          </Button>
+                        )}
+                        {a.status === "rejected" && (
+                          <Button size="sm" variant="outline" onClick={() => setAction({ affiliate: a, decision: "approve" })}>
+                            Approve
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
-                  )}
-                </Fragment>
-              ))}
+                    {open && (
+                      <TableRow className="bg-muted/40 hover:bg-muted/40">
+                        <TableCell colSpan={7} className="px-4 pt-0 pb-4 text-sm whitespace-normal">
+                          <dl className="bg-card grid gap-x-4 gap-y-2.5 rounded-xl border p-4 sm:grid-cols-[140px_1fr]">
+                            <dt className="text-muted-foreground">Website</dt>
+                            <dd className="break-all">
+                              {a.application.website ? (
+                                <a href={a.application.website} target="_blank" rel="noopener noreferrer nofollow" className="text-primary hover:underline">
+                                  {a.application.website}
+                                </a>
+                              ) : (
+                                "—"
+                              )}
+                            </dd>
+                            <dt className="text-muted-foreground">Channels</dt>
+                            <dd>{a.application.channels.join(", ") || "—"}</dd>
+                            <dt className="text-muted-foreground">Audience</dt>
+                            <dd>{a.application.audienceSize}</dd>
+                            <dt className="text-muted-foreground">Promotion plan</dt>
+                            <dd className="whitespace-pre-line">{a.application.promotionPlan}</dd>
+                            <dt className="text-muted-foreground">Payout method</dt>
+                            <dd>{a.payout ? (a.payout.method === "upi" ? `UPI ${a.payout.upiId}` : `Bank ••••${a.payout.accountNumberLast4}`) : "Not set"}</dd>
+                            {a.reviewNote ? (
+                              <>
+                                <dt className="text-muted-foreground">Review note</dt>
+                                <dd>{a.reviewNote}</dd>
+                              </>
+                            ) : null}
+                          </dl>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                );
+              })}
             </TableBody>
           </Table>
         )}
-      </Card>
+        {data ? <AdminPager page={page} totalPages={totalPages} onPage={setPage} /> : null}
+      </ListCard>
 
-      {data && data.total > data.pageSize && (
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-          <Button variant="outline" size="sm" disabled={page * data.pageSize >= data.total} onClick={() => setPage((p) => p + 1)}>Next</Button>
-        </div>
-      )}
-
-      <Dialog open={action !== null} onOpenChange={(open) => { if (!open) { setAction(null); setNote(""); } }}>
+      <Dialog
+        open={action !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAction(null);
+            setNote("");
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{text?.title}: {action?.affiliate.user.name}</DialogTitle>
+            <DialogTitle>
+              {text?.title}: {action?.affiliate.user.name}
+            </DialogTitle>
             <DialogDescription>{text?.body}</DialogDescription>
           </DialogHeader>
           <Field>
@@ -183,8 +252,14 @@ export default function AdminAffiliatesPage() {
             <Textarea id="decision-note" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAction(null)}>Cancel</Button>
-            <Button variant={text?.destructive ? "destructive" : "default"} disabled={decide.isPending || (text?.noteRequired && note.trim().length < 3)} onClick={() => decide.mutate()}>
+            <Button variant="outline" onClick={() => setAction(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant={text?.destructive ? "destructive" : "default"}
+              disabled={decide.isPending || (text?.noteRequired && note.trim().length < 3)}
+              onClick={() => decide.mutate()}
+            >
               {decide.isPending ? <Spinner /> : null}
               {text?.label}
             </Button>

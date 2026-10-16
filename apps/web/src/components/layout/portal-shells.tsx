@@ -21,60 +21,85 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { RoleGate } from "@/components/auth/role-gate";
+import { useMessages } from "@/i18n/client";
 import { cn } from "@/lib/utils";
-import { DashboardShell, type NavItem } from "./dashboard-shell";
-
-const ADMIN_NAV: NavItem[] = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
-  { href: "/admin/products", label: "eBooks", icon: BookOpen },
-  { href: "/admin/orders", label: "Orders & refunds", icon: Receipt },
-  { href: "/admin/customers", label: "Customers", icon: Users },
-  { href: "/admin/affiliates", label: "Affiliates", icon: UsersRound },
-  { href: "/admin/commissions", label: "Commission ledger", icon: HandCoins },
-  { href: "/admin/payouts", label: "Payouts", icon: Wallet },
-  { href: "/admin/audit", label: "Audit log", icon: FileClock },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
-];
-
-const AFFILIATE_NAV: NavItem[] = [
-  { href: "/affiliate", label: "Overview", icon: BarChart3, exact: true },
-  { href: "/affiliate/products", label: "Products & links", icon: Link2 },
-  { href: "/affiliate/commissions", label: "Commissions", icon: HandCoins },
-  { href: "/affiliate/payouts", label: "Payouts", icon: Wallet },
-  { href: "/affiliate/profile", label: "Profile", icon: UserCircle },
-];
+import { DashboardShell, type NavGroup } from "./dashboard-shell";
 
 export function AdminShell({ children }: { children: ReactNode }) {
+  const t = useMessages().common.dashboard;
+  const a = t.admin;
+  const nav: NavGroup[] = [
+    { items: [{ href: "/admin", label: a.overview, icon: LayoutDashboard, exact: true }] },
+    {
+      label: a.groups.store,
+      items: [
+        { href: "/admin/products", label: a.products, icon: BookOpen },
+        { href: "/admin/orders", label: a.orders, icon: Receipt },
+        { href: "/admin/customers", label: a.customers, icon: Users },
+      ],
+    },
+    {
+      label: a.groups.partners,
+      items: [
+        { href: "/admin/affiliates", label: a.affiliates, icon: UsersRound },
+        { href: "/admin/commissions", label: a.commissions, icon: HandCoins },
+        { href: "/admin/payouts", label: a.payouts, icon: Wallet },
+      ],
+    },
+    {
+      label: a.groups.system,
+      items: [
+        { href: "/admin/audit", label: a.audit, icon: FileClock },
+        { href: "/admin/settings", label: a.settings, icon: Settings },
+      ],
+    },
+  ];
   return (
-    <DashboardShell portal="admin" title="Admin" homeHref="/admin" nav={ADMIN_NAV}>
+    <DashboardShell portal="admin" title={t.portals.admin} homeHref="/admin" nav={nav}>
       {children}
     </DashboardShell>
   );
 }
 
 export function AffiliateShell({ children }: { children: ReactNode }) {
+  const t = useMessages().common.dashboard;
+  const a = t.affiliate;
+  const nav: NavGroup[] = [
+    {
+      items: [
+        { href: "/affiliate", label: a.overview, icon: BarChart3, exact: true },
+        { href: "/affiliate/products", label: a.products, icon: Link2 },
+        { href: "/affiliate/commissions", label: a.commissions, icon: HandCoins },
+        { href: "/affiliate/payouts", label: a.payouts, icon: Wallet },
+        { href: "/affiliate/profile", label: a.profile, icon: UserCircle },
+      ],
+    },
+  ];
   return (
-    <DashboardShell portal="affiliate" title="Affiliates" homeHref="/affiliate" nav={AFFILIATE_NAV}>
+    <DashboardShell portal="affiliate" title={t.portals.affiliate} homeHref="/affiliate" nav={nav}>
       {children}
     </DashboardShell>
   );
 }
 
-const CUSTOMER_TABS = [
-  { href: "/library", label: "My books", icon: BookMarked, exact: true },
-  { href: "/library/bookmarks", label: "Bookmarks", icon: Bookmark },
-  { href: "/library/orders", label: "Orders", icon: ScrollText },
-  { href: "/account", label: "Account", icon: Settings },
-];
-
-/** Customer area: storefront header (rendered by the layout) plus a light tab bar, no sidebar. */
+/** Customer area: storefront header (rendered by the layout) plus pill tabs, no sidebar. */
 export function CustomerShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const t = useMessages().common.dashboard.customer;
+  const tabs = [
+    { href: "/library", label: t.books, icon: BookMarked, exact: true },
+    { href: "/library/bookmarks", label: t.bookmarks, icon: Bookmark },
+    { href: "/library/orders", label: t.orders, icon: ScrollText },
+    { href: "/account", label: t.account, icon: Settings },
+  ];
   return (
     <RoleGate portal="customer">
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-        <nav className="mb-8 flex gap-1 overflow-x-auto border-b" aria-label="Library">
-          {CUSTOMER_TABS.map(({ href, label, icon: Icon, exact }) => {
+        <nav
+          className="bg-muted/60 mb-8 flex w-full gap-1 overflow-x-auto rounded-2xl border p-1 scrollbar-none sm:w-fit"
+          aria-label={t.label}
+        >
+          {tabs.map(({ href, label, icon: Icon, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (
               <Link
@@ -82,11 +107,11 @@ export function CustomerShell({ children }: { children: ReactNode }) {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
-                  active ? "border-primary text-foreground" : "text-muted-foreground hover:text-foreground border-transparent",
+                  "flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all",
+                  active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <Icon className="size-4" aria-hidden />
+                <Icon className={cn("size-4", active && "text-primary")} aria-hidden />
                 {label}
               </Link>
             );

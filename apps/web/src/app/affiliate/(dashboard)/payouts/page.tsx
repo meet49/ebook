@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Wallet } from "lucide-react";
+import { AlertTriangle, ArrowRight, Clock, Wallet } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatINR, type PayoutStatus } from "@ebook/shared";
-import { StatTile } from "@/components/charts/stat-tile";
+import { ListCard, StatusPill, type PillTone } from "@/components/dashboard/list-ui";
+import { useAffiliateFormat } from "@/components/affiliate/use-affiliate-format";
 import { PageHeader } from "@/components/layout/dashboard-shell";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -17,9 +17,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useMessages } from "@/i18n/client";
 import type { PayoutDto } from "@/lib/affiliate";
 import { api, errorMessage } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 interface PayoutSummary {
   payablePaise: number;
@@ -29,23 +29,25 @@ interface PayoutSummary {
   items: PayoutDto[];
 }
 
-const dateFmt = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" });
-
-const PAYOUT_STATUS: Record<PayoutStatus, { label: string; className: string }> = {
-  requested: { label: "Requested", className: "bg-muted text-muted-foreground" },
-  processing: { label: "Processing", className: "bg-warning/15 text-warning border-warning/20" },
-  paid: { label: "Paid", className: "bg-success/15 text-success border-success/20" },
-  rejected: { label: "Rejected", className: "bg-destructive/10 text-destructive border-destructive/20" },
+const PAYOUT_TONE: Record<PayoutStatus, PillTone> = {
+  requested: "muted",
+  processing: "warning",
+  paid: "success",
+  rejected: "destructive",
 };
 
 export default function AffiliatePayoutsPage() {
+  const messages = useMessages();
+  const a = messages.affiliate;
+  const t = a.payouts;
+  const fmt = useAffiliateFormat();
   const qc = useQueryClient();
   const [note, setNote] = useState("");
   const { data, isPending } = useQuery({ queryKey: ["affiliate", "payouts"], queryFn: () => api<PayoutSummary>("/affiliate/payouts") });
   const request = useMutation({
     mutationFn: () => api("/affiliate/payouts", { method: "POST", body: { note } }),
     onSuccess: async () => {
-      toast.success("Payout requested. We'll notify you when it's paid.");
+      toast.success(t.requested);
       setNote("");
       await qc.invalidateQueries({ queryKey: ["affiliate"] });
     },
@@ -54,96 +56,187 @@ export default function AffiliatePayoutsPage() {
 
   const inFlight = data?.items.some((p) => p.status === "requested" || p.status === "processing");
   const canRequest = data && data.hasPayoutDetails && !inFlight && data.payablePaise >= data.minimumPaise;
+  const progress = data && data.minimumPaise > 0 ? Math.min(100, Math.round((data.payablePaise / data.minimumPaise) * 100)) : 100;
+  const belowMinimum = data ? data.payablePaise < data.minimumPaise : false;
 
   return (
     <>
-      <PageHeader title="Payouts" description="Request payment of your payable commissions. Payouts are reviewed and paid manually." />
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
-        <div className="space-y-4">
-          <StatTile
-            label="Available to withdraw"
-            icon={Wallet}
-            loading={isPending}
-            value={data ? formatINR(data.payablePaise) : undefined}
-            hint={data ? `${data.payableCount} payable commission${data.payableCount === 1 ? "" : "s"} · minimum ${formatINR(data.minimumPaise)}` : undefined}
-          />
-          <Card>
-            <CardHeader>
-              <CardTitle>Request a payout</CardTitle>
-              <CardDescription>All payable commissions are included in one request.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {data && !data.hasPayoutDetails && (
-                <p className="bg-warning/10 rounded-lg p-3 text-sm">
-                  Add your UPI or bank details first.{" "}
-                  <Link href="/affiliate/profile" className="text-primary font-medium hover:underline">
-                    Add payout details
-                  </Link>
+      <PageHeader eyebrow={t.eyebrow} title={messages.common.dashboard.affiliate.payouts} description={t.description} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
+        <div className="space-y-6">
+          {/* Balance */}
+          <section className="bg-card relative overflow-hidden rounded-2xl border p-5 sm:p-6" aria-labelledby="balance-label">
+            <div aria-hidden className="bg-gradient-brand pointer-events-none absolute inset-0 opacity-[0.07] dark:opacity-[0.14]" />
+            <div className="relative space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <p id="balance-label" className="text-muted-foreground text-sm font-medium">
+                  {t.available}
                 </p>
+                <span className="bg-success/10 text-success flex size-9 items-center justify-center rounded-xl">
+                  <Wallet className="size-4.5" aria-hidden />
+                </span>
+              </div>
+              {isPending || !data ? (
+                <Skeleton className="h-10 w-40" />
+              ) : (
+                <p className="text-3xl font-semibold tracking-tight tabular-nums sm:text-4xl">{formatINR(data.payablePaise)}</p>
               )}
-              {inFlight && <p className="text-muted-foreground text-sm">You have a payout in progress. You can request again once it&apos;s settled.</p>}
+              {data ? (
+                <div className="space-y-2">
+                  <p className="text-muted-foreground text-xs">
+                    {t.payableCount(data.payableCount)} · {t.minimum(formatINR(data.minimumPaise))}
+                  </p>
+                  {belowMinimum ? (
+                    <>
+                      <div
+                        role="progressbar"
+                        aria-label={t.progressLabel}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={progress}
+                        className="bg-muted h-2 overflow-hidden rounded-full"
+                      >
+                        <div className="bg-gradient-brand h-full rounded-full transition-[width]" style={{ width: `${progress}%` }} />
+                      </div>
+                      <p className="text-muted-foreground text-xs">{t.toMinimum(formatINR(data.minimumPaise - data.payablePaise))}</p>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          {/* Request */}
+          <Card className="rounded-2xl">
+            <CardHeader>
+              <CardTitle>{t.requestTitle}</CardTitle>
+              <CardDescription>{t.requestBody}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {data && !data.hasPayoutDetails && (
+                <div className="bg-warning/10 border-warning/25 flex gap-2.5 rounded-xl border p-3 text-sm">
+                  <AlertTriangle className="text-warning mt-0.5 size-4 shrink-0" aria-hidden />
+                  <p>
+                    {t.needDetails}{" "}
+                    <Link href="/affiliate/profile" className="text-primary font-medium hover:underline">
+                      {t.addDetails}
+                    </Link>
+                  </p>
+                </div>
+              )}
+              {inFlight && (
+                <div className="bg-muted/60 flex gap-2.5 rounded-xl p-3 text-sm">
+                  <Clock className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
+                  <p className="text-muted-foreground">{t.inFlight}</p>
+                </div>
+              )}
               <Field>
-                <FieldLabel htmlFor="payout-note">Note for our team (optional)</FieldLabel>
+                <FieldLabel htmlFor="payout-note">{t.note}</FieldLabel>
                 <Textarea id="payout-note" rows={2} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} />
               </Field>
-              <Button className="w-full" disabled={!canRequest || request.isPending} onClick={() => request.mutate()}>
-                {request.isPending ? <Spinner /> : null}
-                Request {data ? formatINR(data.payablePaise) : "payout"}
+              <Button size="lg" className="w-full" disabled={!canRequest || request.isPending} onClick={() => request.mutate()}>
+                {request.isPending ? <Spinner /> : <ArrowRight />}
+                {data ? t.requestAmount(formatINR(data.payablePaise)) : t.requestGeneric}
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* How it works */}
+          <Card className="bg-muted/30 rounded-2xl">
+            <CardHeader>
+              <CardTitle className="text-base">{t.howTitle}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ol className="space-y-3 text-sm">
+                {t.how.map((step, i) => (
+                  <li key={step} className="flex gap-3">
+                    <span className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">{i + 1}</span>
+                    <span className="text-muted-foreground">{step}</span>
+                  </li>
+                ))}
+              </ol>
             </CardContent>
           </Card>
         </div>
 
-        <Card className="h-fit overflow-hidden py-0">
-          <CardHeader className="pt-6">
-            <CardTitle>Payout history</CardTitle>
-          </CardHeader>
+        {/* History */}
+        <ListCard
+          className="h-fit"
+          toolbar={<h2 className="font-semibold">{t.historyTitle}</h2>}
+        >
           {isPending ? (
-            <Skeleton className="m-4 h-32" />
+            <div className="space-y-2 p-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-12" />
+              ))}
+            </div>
           ) : !data?.items.length ? (
-            <Empty>
+            <Empty className="py-14">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <Wallet />
                 </EmptyMedia>
-                <EmptyTitle>No payouts yet</EmptyTitle>
-                <EmptyDescription>Your payout requests and their references will appear here.</EmptyDescription>
+                <EmptyTitle>{t.emptyTitle}</EmptyTitle>
+                <EmptyDescription>{t.emptyBody}</EmptyDescription>
               </EmptyHeader>
             </Empty>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="pl-6">Requested</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead className="pr-6 text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              <ul className="divide-y md:hidden">
                 {data.items.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="pl-6">
-                      {dateFmt.format(new Date(p.createdAt))}
-                      <div className="text-muted-foreground text-xs">{p.destination}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={cn(PAYOUT_STATUS[p.status].className)}>
-                        {PAYOUT_STATUS[p.status].label}
-                      </Badge>
-                      {p.status === "rejected" && p.adminNote ? <div className="text-muted-foreground mt-1 text-xs">{p.adminNote}</div> : null}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {p.reference ?? "—"}
-                      {p.paidAt ? <div className="text-muted-foreground font-sans">{dateFmt.format(new Date(p.paidAt))}</div> : null}
-                    </TableCell>
-                    <TableCell className="pr-6 text-right font-medium tabular-nums">{formatINR(p.amountPaise)}</TableCell>
-                  </TableRow>
+                  <li key={p.id} className="space-y-2 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium">{fmt.date(p.createdAt)}</p>
+                        <p className="text-muted-foreground truncate text-xs">
+                          {t.commissionsCount(p.commissionCount)}
+                          {p.destination ? ` · ${p.destination}` : ""}
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-base font-semibold tabular-nums">{formatINR(p.amountPaise)}</p>
+                    </div>
+                    <StatusPill tone={PAYOUT_TONE[p.status]}>{a.payoutStatus[p.status]}</StatusPill>
+                    {p.reference ? <p className="font-mono text-xs break-all">{p.reference}</p> : null}
+                    {p.paidAt ? <p className="text-muted-foreground text-xs">{t.paidOn(fmt.date(p.paidAt))}</p> : null}
+                    {p.status === "rejected" && p.adminNote ? <p className="text-muted-foreground text-xs">{p.adminNote}</p> : null}
+                  </li>
                 ))}
-              </TableBody>
-            </Table>
+              </ul>
+              <Table className="hidden md:table">
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="pl-4">{t.colRequested}</TableHead>
+                    <TableHead>{t.colStatus}</TableHead>
+                    <TableHead>{t.colReference}</TableHead>
+                    <TableHead className="pr-4 text-right">{t.colAmount}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.items.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell className="pl-4">
+                        <span className="font-medium">{fmt.date(p.createdAt)}</span>
+                        <div className="text-muted-foreground max-w-56 truncate text-xs">
+                          {t.commissionsCount(p.commissionCount)}
+                          {p.destination ? ` · ${p.destination}` : ""}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <StatusPill tone={PAYOUT_TONE[p.status]}>{a.payoutStatus[p.status]}</StatusPill>
+                        {p.status === "rejected" && p.adminNote ? <div className="text-muted-foreground mt-1 max-w-56 text-xs whitespace-normal">{p.adminNote}</div> : null}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {p.reference ?? "—"}
+                        {p.paidAt ? <div className="text-muted-foreground font-sans">{t.paidOn(fmt.date(p.paidAt))}</div> : null}
+                      </TableCell>
+                      <TableCell className="pr-4 text-right font-semibold tabular-nums">{formatINR(p.amountPaise)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </>
           )}
-        </Card>
+        </ListCard>
       </div>
     </>
   );

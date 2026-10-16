@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { AlertTriangle, Archive, ArrowLeft, ExternalLink, EyeOff, RotateCcw, Rocket } from "lucide-react";
+import { AlertTriangle, Archive, ArrowLeft, ExternalLink, EyeOff, RotateCcw, Rocket, Store } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { AdminProduct } from "@ebook/shared";
@@ -53,6 +53,7 @@ export default function EditProductPage() {
   const { id } = useParams<{ id: string }>();
   const { data: product, isPending, isError, error, refetch } = useAdminProduct(id);
   const update = useUpdateProduct(id);
+  const [pending, setPending] = useState<Exclude<ProductAction, "reprocess"> | null>(null);
 
   if (isPending) {
     return (
@@ -95,7 +96,7 @@ export default function EditProductPage() {
           <h1 className="text-2xl font-semibold tracking-tight">{product.title}</h1>
           <ProductStatusBadge status={product.status} processing={product.processing.status} />
         </div>
-        <StatusActions product={product} />
+        <StatusActions product={product} pending={pending} setPending={setPending} />
       </div>
 
       {product.publishBlockers.length > 0 && product.status !== "archived" && product.status !== "published" && (
@@ -110,6 +111,23 @@ export default function EditProductPage() {
                 ))}
               </ul>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {product.publishBlockers.length === 0 && (product.status === "draft" || product.status === "unpublished") && (
+        <Card className="border-primary/30 bg-primary/5 mb-6 py-4">
+          <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Store className="text-primary size-5 shrink-0" aria-hidden />
+            <div className="flex-1 text-sm">
+              <p className="font-medium">This eBook is not visible in the store yet.</p>
+              <p className="text-muted-foreground">
+                It is {product.status}. Publish it so it shows on the home page and in the catalogue and customers can buy it.
+              </p>
+            </div>
+            <Button onClick={() => setPending("publish")}>
+              <Rocket /> Publish now
+            </Button>
           </CardContent>
         </Card>
       )}
@@ -133,12 +151,21 @@ export default function EditProductPage() {
   );
 }
 
-function StatusActions({ product }: { product: AdminProduct }) {
+type ConfirmableAction = Exclude<ProductAction, "reprocess">;
+
+function StatusActions({
+  product,
+  pending,
+  setPending,
+}: {
+  product: AdminProduct;
+  pending: ConfirmableAction | null;
+  setPending: (a: ConfirmableAction | null) => void;
+}) {
   const action = useProductAction(product.id);
-  const [pending, setPending] = useState<Exclude<ProductAction, "reprocess"> | null>(null);
   const confirm = pending ? CONFIRM[pending] : null;
 
-  const run = (a: Exclude<ProductAction, "reprocess">) =>
+  const run = (a: ConfirmableAction) =>
     action.mutate(a, {
       onSuccess: () => toast.success(DONE[a]),
       onError: (err) => {

@@ -1,25 +1,24 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { HandCoins } from "lucide-react";
+import { CheckCheck, HandCoins, History } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { COMMISSION_STATUSES, formatINR, type CommissionStatus, type Paginated } from "@ebook/shared";
 import { CommissionStatusBadge } from "@/components/affiliate/commission-status";
+import { FilterPills, ListCard, StatusPill } from "@/components/dashboard/list-ui";
 import { PageHeader } from "@/components/layout/dashboard-shell";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { COMMISSION_STATUS_INFO, commissionLabel } from "@/lib/affiliate";
 import { api, errorMessage } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { AdminPager, ListEmpty, ListSkeleton } from "../_components/admin-list";
 
 interface LedgerEntry {
   id: string;
@@ -38,6 +37,15 @@ interface LedgerEntry {
 }
 
 const dateFmt = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" });
+
+const STATUS_DOT: Record<CommissionStatus, string> = {
+  pending: "bg-muted-foreground/50",
+  approved: "bg-primary",
+  payable: "bg-success",
+  processing: "bg-warning",
+  paid: "bg-success/60",
+  reversed: "bg-destructive",
+};
 
 export default function AdminCommissionsPage() {
   const qc = useQueryClient();
@@ -78,57 +86,74 @@ export default function AdminCommissionsPage() {
   });
 
   const pendingIds = data?.items.filter((c) => c.status === "pending").map((c) => c.id) ?? [];
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
+  const changeStatus = (v: CommissionStatus | "all") => {
+    setStatus(v);
+    setPage(1);
+    setSelected(new Set());
+  };
 
   return (
     <>
       <PageHeader
+        eyebrow="Partners"
         title="Commission ledger"
         description="Every affiliate commission with its full history. Approve pending entries after reviewing the sale."
         actions={
           selected.size > 0 ? (
-            <Button onClick={() => approve.mutate([...selected])} disabled={approve.isPending}>
-              Approve {selected.size} selected
+            <Button size="lg" onClick={() => approve.mutate([...selected])} disabled={approve.isPending}>
+              {approve.isPending ? <Spinner /> : <CheckCheck />} Approve {selected.size} selected
             </Button>
           ) : undefined
         }
       />
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {COMMISSION_STATUSES.map((s) => (
-          <Card key={s} className="gap-1 py-3">
-            <CardContent>
-              <p className="text-muted-foreground text-xs">{COMMISSION_STATUS_INFO[s].label}</p>
-              <p className="font-semibold tabular-nums">{formatINR(data?.totals[s]?.amountPaise ?? 0)}</p>
-              <p className="text-muted-foreground text-xs">{data?.totals[s]?.count ?? 0} entries</p>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        {COMMISSION_STATUSES.map((s) => {
+          const active = status === s;
+          return (
+            <button
+              key={s}
+              type="button"
+              aria-pressed={active}
+              onClick={() => changeStatus(s)}
+              className={cn(
+                "bg-card focus-visible:ring-ring/50 rounded-xl border p-3.5 text-left transition-all outline-none hover:shadow-sm focus-visible:ring-3",
+                active && "border-primary/50 ring-primary/15 ring-2",
+              )}
+            >
+              <span className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+                <span aria-hidden className={cn("size-2 rounded-full", STATUS_DOT[s])} />
+                {COMMISSION_STATUS_INFO[s].label}
+              </span>
+              <span className="mt-1 block font-semibold tabular-nums">{formatINR(data?.totals[s]?.amountPaise ?? 0)}</span>
+              <span className="text-muted-foreground block text-xs">{data?.totals[s]?.count ?? 0} entries</span>
+            </button>
+          );
+        })}
       </div>
 
-      <Tabs value={status} onValueChange={(v) => { setStatus(v as CommissionStatus | "all"); setPage(1); setSelected(new Set()); }} className="mb-4">
-        <TabsList className="flex-wrap">
-          {COMMISSION_STATUSES.map((s) => (
-            <TabsTrigger key={s} value={s}>{COMMISSION_STATUS_INFO[s].label}</TabsTrigger>
-          ))}
-          <TabsTrigger value="all">All</TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      <Card className="overflow-hidden py-0">
+      <ListCard
+        toolbar={
+          <>
+            <FilterPills
+              label="Filter by status"
+              value={status}
+              onChange={changeStatus}
+              options={[...COMMISSION_STATUSES.map((s) => ({ value: s, label: COMMISSION_STATUS_INFO[s].label })), { value: "all" as const, label: "All" }]}
+            />
+            {data ? <p className="text-muted-foreground shrink-0 text-sm">{data.total} entries</p> : null}
+          </>
+        }
+      >
         {isPending ? (
-          <Skeleton className="m-4 h-40" />
+          <ListSkeleton rows={5} />
         ) : !data?.items.length ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon"><HandCoins /></EmptyMedia>
-              <EmptyTitle>No commissions</EmptyTitle>
-              <EmptyDescription>Commissions are created automatically when an affiliate-referred payment is verified.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <ListEmpty icon={HandCoins} title="No commissions" description="Commissions are created automatically when an affiliate-referred payment is verified." />
         ) : (
-          <Table className={isPlaceholderData ? "opacity-60" : undefined}>
+          <Table className={cn("min-w-220 transition-opacity", isPlaceholderData && "opacity-60")}>
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead className="w-10 pl-4">
                   {pendingIds.length > 0 && (
                     <Checkbox
@@ -149,36 +174,57 @@ export default function AdminCommissionsPage() {
             </TableHeader>
             <TableBody>
               {data.items.map((c) => (
-                <TableRow key={c.id}>
+                <TableRow key={c.id} data-state={selected.has(c.id) ? "selected" : undefined}>
                   <TableCell className="pl-4">
                     {c.status === "pending" && (
                       <Checkbox
                         aria-label={`Select commission for ${c.orderNumber}`}
                         checked={selected.has(c.id)}
-                        onCheckedChange={(v) => setSelected((prev) => { const next = new Set(prev); if (v) next.add(c.id); else next.delete(c.id); return next; })}
+                        onCheckedChange={(v) =>
+                          setSelected((prev) => {
+                            const next = new Set(prev);
+                            if (v) next.add(c.id);
+                            else next.delete(c.id);
+                            return next;
+                          })
+                        }
                       />
                     )}
                   </TableCell>
-                  <TableCell>{dateFmt.format(new Date(c.createdAt))}</TableCell>
-                  <TableCell className="font-mono text-xs">{c.affiliateCode}</TableCell>
+                  <TableCell className="text-muted-foreground">{dateFmt.format(new Date(c.createdAt))}</TableCell>
+                  <TableCell>
+                    <CodeChip>{c.affiliateCode}</CodeChip>
+                  </TableCell>
                   <TableCell>
                     <span className="font-mono text-xs">{c.orderNumber}</span>
-                    <span className="text-muted-foreground block max-w-40 truncate text-xs">{c.productTitle}</span>
+                    <span className="text-muted-foreground block max-w-44 truncate text-xs">{c.productTitle}</span>
                   </TableCell>
                   <TableCell className="tabular-nums">
                     {formatINR(c.baseAmountPaise)} <span className="text-muted-foreground text-xs">@ {commissionLabel(c.rule)}</span>
-                    {c.orderStatus !== "paid" && <span className="text-warning block text-xs capitalize">Order {c.orderStatus.replace("_", " ")}</span>}
+                    {c.orderStatus !== "paid" && <span className="text-warning block text-xs font-medium capitalize">Order {c.orderStatus.replace("_", " ")}</span>}
                   </TableCell>
                   <TableCell>
-                    <CommissionStatusBadge status={c.status} />
-                    {c.clawbackRequired && <Badge variant="destructive" className="ml-1">Clawback</Badge>}
+                    <span className="inline-flex flex-wrap items-center gap-1">
+                      <CommissionStatusBadge status={c.status} />
+                      {c.clawbackRequired && <StatusPill tone="destructive">Clawback</StatusPill>}
+                    </span>
                   </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">{formatINR(c.amountPaise)}</TableCell>
+                  <TableCell className={cn("text-right font-semibold tabular-nums", c.status === "reversed" && "text-muted-foreground font-medium line-through")}>
+                    {formatINR(c.amountPaise)}
+                  </TableCell>
                   <TableCell className="space-x-1 pr-4 text-right whitespace-nowrap">
-                    <Button size="sm" variant="ghost" onClick={() => setHistory(c)}>History</Button>
-                    {c.status === "pending" && <Button size="sm" variant="outline" onClick={() => approve.mutate([c.id])}>Approve</Button>}
+                    <Button size="sm" variant="ghost" onClick={() => setHistory(c)}>
+                      <History /> History
+                    </Button>
+                    {c.status === "pending" && (
+                      <Button size="sm" variant="outline" onClick={() => approve.mutate([c.id])}>
+                        Approve
+                      </Button>
+                    )}
                     {["pending", "approved", "payable"].includes(c.status) && (
-                      <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setReverse(c)}>Reverse</Button>
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setReverse(c)}>
+                        Reverse
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>
@@ -186,16 +232,18 @@ export default function AdminCommissionsPage() {
             </TableBody>
           </Table>
         )}
-      </Card>
+        {data ? <AdminPager page={page} totalPages={totalPages} onPage={setPage} /> : null}
+      </ListCard>
 
-      {data && data.total > data.pageSize && (
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-          <Button variant="outline" size="sm" disabled={page * data.pageSize >= data.total} onClick={() => setPage((p) => p + 1)}>Next</Button>
-        </div>
-      )}
-
-      <Dialog open={reverse !== null} onOpenChange={(o) => { if (!o) { setReverse(null); setNote(""); } }}>
+      <Dialog
+        open={reverse !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setReverse(null);
+            setNote("");
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reverse commission for {reverse?.orderNumber}?</DialogTitle>
@@ -206,8 +254,12 @@ export default function AdminCommissionsPage() {
             <Textarea id="reverse-note" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReverse(null)}>Cancel</Button>
-            <Button variant="destructive" disabled={note.trim().length < 3 || doReverse.isPending} onClick={() => doReverse.mutate()}>Reverse</Button>
+            <Button variant="outline" onClick={() => setReverse(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" disabled={note.trim().length < 3 || doReverse.isPending} onClick={() => doReverse.mutate()}>
+              {doReverse.isPending ? <Spinner /> : null} Reverse
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -218,11 +270,14 @@ export default function AdminCommissionsPage() {
             <DialogTitle>Ledger history · {history?.orderNumber}</DialogTitle>
             <DialogDescription>Every status change is recorded and cannot be edited.</DialogDescription>
           </DialogHeader>
-          <ol className="space-y-3 border-l pl-4">
+          <ol className="space-y-4 border-l pl-5">
             {history?.history.map((h, i) => (
-              <li key={i} className="text-sm">
-                <CommissionStatusBadge status={h.status} />
-                <span className="text-muted-foreground ml-2 text-xs">{new Date(h.at).toLocaleString("en-IN")}</span>
+              <li key={i} className="relative text-sm">
+                <span aria-hidden className={cn("border-background absolute top-1 -left-6.5 size-3 rounded-full border-2", STATUS_DOT[h.status])} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <CommissionStatusBadge status={h.status} />
+                  <span className="text-muted-foreground text-xs">{new Date(h.at).toLocaleString("en-IN")}</span>
+                </div>
                 {h.note ? <p className="text-muted-foreground mt-1">{h.note}</p> : null}
               </li>
             ))}
@@ -231,4 +286,8 @@ export default function AdminCommissionsPage() {
       </Dialog>
     </>
   );
+}
+
+function CodeChip({ children }: { children: string }) {
+  return <span className="bg-muted rounded-md px-1.5 py-0.5 font-mono text-xs">{children}</span>;
 }

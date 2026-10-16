@@ -3,26 +3,31 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { AuthCard } from "@/components/auth/auth-card";
 import { LoginForm } from "@/components/auth/login-form";
+import { getMessages } from "@/i18n/server";
 
-export const metadata: Metadata = { title: "Sign in" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getMessages();
+  return { title: t.auth.meta.signIn };
+}
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const t = (await getMessages()).auth.login;
   return (
     <AuthCard
-      title="Welcome back"
-      description="Sign in to read your eBooks."
+      title={t.title}
+      description={t.description}
       footer={
         <>
           <p>
-            New here?{" "}
+            {t.newHere}{" "}
             <Link href="/register" className="text-primary font-medium hover:underline">
-              Create an account
+              {t.createAccount}
             </Link>
           </p>
           <p className="text-xs">
-            Affiliate?{" "}
-            <Link href="/affiliate/login" className="hover:underline">
-              Sign in to the affiliate dashboard
+            {t.affiliate}{" "}
+            <Link href="/affiliate/login" className="hover:text-foreground underline-offset-4 hover:underline">
+              {t.affiliateLink}
             </Link>
           </p>
         </>

@@ -3,10 +3,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { useState, type ReactNode } from "react";
+import { RegisterServiceWorker } from "@/components/pwa/register-sw";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { I18nProvider } from "@/i18n/client";
+import type { Locale } from "@/i18n/config";
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({ locale, children }: { locale: Locale; children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -18,13 +21,16 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Light by default; dark mode is offered inside the reader and account settings. */}
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
-        <TooltipProvider delayDuration={200}>
-          {children}
-          <Toaster richColors position="top-center" />
-        </TooltipProvider>
-      </ThemeProvider>
+      <I18nProvider initialLocale={locale}>
+        {/* Follows the device setting until the visitor picks light or dark. */}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <TooltipProvider delayDuration={200}>
+            {children}
+            <Toaster richColors position="top-center" />
+            <RegisterServiceWorker />
+          </TooltipProvider>
+        </ThemeProvider>
+      </I18nProvider>
     </QueryClientProvider>
   );
 }

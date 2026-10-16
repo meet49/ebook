@@ -9,6 +9,7 @@ import {
   type FieldValues,
 } from "react-hook-form";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import { useMessages } from "@/i18n/client";
 
 interface FormFieldProps<T extends FieldValues, TName extends FieldPath<T>, TOut> {
   control: Control<T, unknown, TOut>;
@@ -27,6 +28,7 @@ export function FormField<T extends FieldValues, TName extends FieldPath<T>, TOu
   description,
   children,
 }: FormFieldProps<T, TName, TOut>) {
+  const validation = useMessages().common.validation;
   return (
     <Controller
       control={control}
@@ -38,7 +40,7 @@ export function FormField<T extends FieldValues, TName extends FieldPath<T>, TOu
             <FieldLabel htmlFor={id}>{label}</FieldLabel>
             {children({ field, id, invalid: fieldState.invalid })}
             {description ? <FieldDescription>{description}</FieldDescription> : null}
-            {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+            {fieldState.invalid ? <FieldError errors={[fieldState.error && { ...fieldState.error, message: validation[fieldState.error.message ?? ""] ?? fieldState.error.message }]} /> : null}
           </Field>
         );
       }}

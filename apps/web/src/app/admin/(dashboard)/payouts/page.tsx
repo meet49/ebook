@@ -1,26 +1,24 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Wallet } from "lucide-react";
+import { Banknote, Info, Play, Wallet } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatINR, type Paginated, type PayoutStatus } from "@ebook/shared";
+import { FilterPills, ListCard, StatusPill, type PillTone } from "@/components/dashboard/list-ui";
 import { PageHeader } from "@/components/layout/dashboard-shell";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { PayoutDto } from "@/lib/affiliate";
 import { api, errorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { AdminPager, ListEmpty, ListSkeleton } from "../_components/admin-list";
 
 interface AdminPayout extends PayoutDto {
   affiliate: { code: string; name: string; email: string };
@@ -34,12 +32,20 @@ interface Destination {
   ifsc: string | null;
 }
 
-const STATUS: Record<PayoutStatus, string> = {
-  requested: "bg-muted text-muted-foreground",
-  processing: "bg-warning/15 text-warning border-warning/20",
-  paid: "bg-success/15 text-success border-success/20",
-  rejected: "bg-destructive/10 text-destructive border-destructive/20",
+const STATUS_TONE: Record<PayoutStatus, PillTone> = {
+  requested: "primary",
+  processing: "warning",
+  paid: "success",
+  rejected: "destructive",
 };
+
+const FILTERS: { value: PayoutStatus | "all"; label: string }[] = [
+  { value: "requested", label: "Requested" },
+  { value: "processing", label: "Processing" },
+  { value: "paid", label: "Paid" },
+  { value: "rejected", label: "Rejected" },
+  { value: "all", label: "All" },
+];
 
 const dateFmt = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" });
 
@@ -88,38 +94,44 @@ export default function AdminPayoutsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "payouts"] }),
     onError: (e) => toast.error(errorMessage(e)),
   });
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
   return (
     <>
-      <PageHeader
-        title="Payouts"
-        description="Pay affiliates manually from your bank or UPI app, then record the real transaction reference here. Nothing is transferred automatically."
-      />
-      <Tabs value={status} onValueChange={(v) => { setStatus(v as PayoutStatus | "all"); setPage(1); }} className="mb-4">
-        <TabsList>
-          <TabsTrigger value="requested">Requested</TabsTrigger>
-          <TabsTrigger value="processing">Processing</TabsTrigger>
-          <TabsTrigger value="paid">Paid</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-          <TabsTrigger value="all">All</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <PageHeader eyebrow="Partners" title="Payouts" description="Review payout requests from affiliates and record each payment you make." />
 
-      <Card className="overflow-hidden py-0">
+      <div className="bg-primary/5 border-primary/20 mb-6 flex gap-3 rounded-2xl border p-4 text-sm">
+        <Info className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
+        <p className="text-muted-foreground">
+          <span className="text-foreground font-medium">Nothing is transferred automatically.</span> Pay affiliates manually from your bank or UPI app, then
+          record the real transaction reference here.
+        </p>
+      </div>
+
+      <ListCard
+        toolbar={
+          <>
+            <FilterPills
+              label="Filter by status"
+              value={status}
+              onChange={(v) => {
+                setStatus(v);
+                setPage(1);
+              }}
+              options={FILTERS}
+            />
+            {data ? <p className="text-muted-foreground shrink-0 text-sm">{data.total} payouts</p> : null}
+          </>
+        }
+      >
         {isPending ? (
-          <Skeleton className="m-4 h-40" />
+          <ListSkeleton rows={4} />
         ) : !data?.items.length ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon"><Wallet /></EmptyMedia>
-              <EmptyTitle>No payouts here</EmptyTitle>
-              <EmptyDescription>Affiliates request payouts from their dashboard once commissions are payable.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <ListEmpty icon={Wallet} title="No payouts here" description="Affiliates request payouts from their dashboard once commissions are payable." />
         ) : (
-          <Table className={isPlaceholderData ? "opacity-60" : undefined}>
+          <Table className={cn("min-w-220 transition-opacity", isPlaceholderData && "opacity-60")}>
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead className="pl-4">Requested</TableHead>
                 <TableHead>Affiliate</TableHead>
                 <TableHead>Destination</TableHead>
@@ -132,28 +144,40 @@ export default function AdminPayoutsPage() {
               {data.items.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="pl-4">
-                    {dateFmt.format(new Date(p.createdAt))}
+                    <span className="font-medium">{dateFmt.format(new Date(p.createdAt))}</span>
                     <div className="text-muted-foreground text-xs">{p.commissionCount} commissions</div>
                   </TableCell>
                   <TableCell>
                     <div className="font-medium">{p.affiliate.name}</div>
-                    <div className="text-muted-foreground text-xs">{p.affiliate.email} · {p.affiliate.code}</div>
+                    <div className="text-muted-foreground text-xs">
+                      {p.affiliate.email} · <span className="font-mono">{p.affiliate.code}</span>
+                    </div>
                   </TableCell>
                   <TableCell className="text-sm">
-                    {p.destination}
-                    {p.affiliateNote ? <div className="text-muted-foreground text-xs">“{p.affiliateNote}”</div> : null}
+                    {p.destination ?? "—"}
+                    {p.affiliateNote ? <div className="text-muted-foreground max-w-56 truncate text-xs italic">“{p.affiliateNote}”</div> : null}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={cn("capitalize", STATUS[p.status])}>{p.status}</Badge>
+                    <StatusPill tone={STATUS_TONE[p.status]} className="capitalize">
+                      {p.status}
+                    </StatusPill>
                     {p.reference ? <div className="mt-1 font-mono text-xs">{p.reference}</div> : null}
                   </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">{formatINR(p.amountPaise)}</TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums">{formatINR(p.amountPaise)}</TableCell>
                   <TableCell className="space-x-1 pr-4 text-right whitespace-nowrap">
-                    {p.status === "requested" && <Button size="sm" variant="ghost" onClick={() => start.mutate(p.id)}>Start</Button>}
+                    {p.status === "requested" && (
+                      <Button size="sm" variant="ghost" disabled={start.isPending} onClick={() => start.mutate(p.id)}>
+                        <Play /> Start
+                      </Button>
+                    )}
                     {(p.status === "requested" || p.status === "processing") && (
                       <>
-                        <Button size="sm" onClick={() => setPaying(p)}>Record payment</Button>
-                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setRejecting(p)}>Reject</Button>
+                        <Button size="sm" onClick={() => setPaying(p)}>
+                          <Banknote /> Record payment
+                        </Button>
+                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setRejecting(p)}>
+                          Reject
+                        </Button>
                       </>
                     )}
                   </TableCell>
@@ -162,31 +186,40 @@ export default function AdminPayoutsPage() {
             </TableBody>
           </Table>
         )}
-      </Card>
+        {data ? <AdminPager page={page} totalPages={totalPages} onPage={setPage} /> : null}
+      </ListCard>
 
-      {data && data.total > data.pageSize && (
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-          <Button variant="outline" size="sm" disabled={page * data.pageSize >= data.total} onClick={() => setPage((p) => p + 1)}>Next</Button>
-        </div>
-      )}
-
-      <Dialog open={paying !== null} onOpenChange={(o) => { if (!o) { setPaying(null); setReference(""); setNote(""); } }}>
+      <Dialog
+        open={paying !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setPaying(null);
+            setReference("");
+            setNote("");
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Record payment of {paying ? formatINR(paying.amountPaise) : ""}</DialogTitle>
             <DialogDescription>First send the money from your bank or UPI app. Then enter the transaction reference it gave you.</DialogDescription>
           </DialogHeader>
-          <div className="bg-muted rounded-lg p-3 text-sm">
+          <div className="bg-muted/60 rounded-xl border p-4 text-sm">
+            <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wider uppercase">Pay to</p>
             {destination.isPending ? (
               <Skeleton className="h-12" />
             ) : destination.data?.method === "upi" ? (
-              <p>UPI: <span className="font-mono">{destination.data.upiId}</span></p>
+              <p>
+                UPI: <span className="font-mono font-medium">{destination.data.upiId}</span>
+              </p>
             ) : destination.data ? (
-              <dl className="grid grid-cols-[110px_1fr] gap-1">
-                <dt className="text-muted-foreground">Name</dt><dd>{destination.data.accountName}</dd>
-                <dt className="text-muted-foreground">Account</dt><dd className="font-mono">{destination.data.accountNumber}</dd>
-                <dt className="text-muted-foreground">IFSC</dt><dd className="font-mono">{destination.data.ifsc}</dd>
+              <dl className="grid grid-cols-[90px_1fr] gap-1.5">
+                <dt className="text-muted-foreground">Name</dt>
+                <dd className="font-medium">{destination.data.accountName}</dd>
+                <dt className="text-muted-foreground">Account</dt>
+                <dd className="font-mono">{destination.data.accountNumber}</dd>
+                <dt className="text-muted-foreground">IFSC</dt>
+                <dd className="font-mono">{destination.data.ifsc}</dd>
               </dl>
             ) : (
               <p className="text-destructive">Could not load payout details.</p>
@@ -194,7 +227,7 @@ export default function AdminPayoutsPage() {
           </div>
           <Field>
             <FieldLabel htmlFor="ref">Transaction reference (UTR / UPI ref)</FieldLabel>
-            <Input id="ref" value={reference} onChange={(e) => setReference(e.target.value)} autoComplete="off" />
+            <Input id="ref" value={reference} onChange={(e) => setReference(e.target.value)} autoComplete="off" className="font-mono" />
             <FieldDescription>Required. The payout is only marked paid with a real reference.</FieldDescription>
           </Field>
           <Field>
@@ -202,7 +235,9 @@ export default function AdminPayoutsPage() {
             <Textarea id="paid-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPaying(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setPaying(null)}>
+              Cancel
+            </Button>
             <Button disabled={reference.trim().length < 4 || markPaid.isPending} onClick={() => markPaid.mutate()}>
               {markPaid.isPending ? <Spinner /> : null} Mark as paid
             </Button>
@@ -210,7 +245,15 @@ export default function AdminPayoutsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={rejecting !== null} onOpenChange={(o) => { if (!o) { setRejecting(null); setNote(""); } }}>
+      <Dialog
+        open={rejecting !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setRejecting(null);
+            setNote("");
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reject this payout request?</DialogTitle>
@@ -221,8 +264,12 @@ export default function AdminPayoutsPage() {
             <Textarea id="reject-note" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRejecting(null)}>Cancel</Button>
-            <Button variant="destructive" disabled={note.trim().length < 3 || reject.isPending} onClick={() => reject.mutate()}>Reject</Button>
+            <Button variant="outline" onClick={() => setRejecting(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" disabled={note.trim().length < 3 || reject.isPending} onClick={() => reject.mutate()}>
+              {reject.isPending ? <Spinner /> : null} Reject
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
