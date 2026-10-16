@@ -11,7 +11,7 @@ import { imageUpload, isPdfFile, pdfUpload, removeTemp, sha256File } from '../..
 import { parse } from '../../middleware/validate';
 import { Product, type ProductDoc } from '../../models/Product';
 import { ProductAsset } from '../../models/ProductAsset';
-import { enqueueProcessing, removeOriginalAndPages } from './processing';
+import { enqueueProcessing, removeOriginalAndDerived } from './processing';
 import { applyInput, publishBlockers, resolveSlug, toAdmin } from './products.service';
 
 export const adminProductsRouter = Router();
@@ -172,7 +172,7 @@ adminProductsRouter.post('/:id/pdf', pdfUpload, async (req, res) => {
     product.set('processing', { status: 'queued', error: null, done: 0, total: 0, attempts: 0, updatedAt: new Date() });
     await product.save();
     if (pending && !(product.pageSetId && pending.equals(product.pageSetId))) {
-      await removeOriginalAndPages(product._id.toString(), pending);
+      await removeOriginalAndDerived(product._id.toString(), pending);
     }
 
     void enqueueProcessing(product._id.toString());
@@ -208,12 +208,10 @@ adminProductsRouter.get('/:id/cover', async (req, res) => {
   await sendObject(res, asset.storageKey, 'image/webp', 'private, max-age=300');
 });
 
-/** Admin preview of any rendered page (not watermarked, never cached publicly). */
-adminProductsRouter.get('/:id/pages/:page', async (req, res) => {
+/** The original PDF, for the admin's own preview (never cached). */
+adminProductsRouter.get('/:id/pdf', async (req, res) => {
   const product = await loadProduct(req);
-  const page = Number(req.params.page);
-  if (!Number.isInteger(page) || page < 1 || !product.pageSetId) throw notFound('Page not found');
-  const asset = await ProductAsset.findOne({ sourceAssetId: product.pageSetId, kind: 'page_image', page });
-  if (!asset) throw notFound('Page not found');
-  await sendObject(res, asset.storageKey, 'image/webp', 'private, no-store');
+  const asset = product.pageSetId ? await ProductAsset.findById(product.pageSetId) : null;
+  if (!asset) throw notFound('No processed PDF yet');
+  await sendObject(res, asset.storageKey, 'application/pdf', 'private, no-store');
 });

@@ -145,12 +145,20 @@ revocable sessions and single-use email links.
 
 ### Reader security
 - Original PDFs live in a **private** bucket; never public, never emailed.
-- On upload the API rasterises pages into WebP page images (private).
-- `GET /reader/:productId/pages/:n` checks session + active entitlement +
-  rate limit, then streams the page with a per-user watermark (email + order
-  id). No storage URLs reach the browser.
-- Screenshots, screen recording and manual copying **cannot be fully
-  prevented**; these measures raise the cost and make leaks traceable.
+- On upload the API only reads the PDF (page count, page size, bookmarks); it
+  does not render page images.
+- `GET /reader/:productId/book` checks session + active entitlement + rate
+  limit and requires the `x-readnshare-reader` header, then returns that
+  buyer's personal copy: every page carries a footer (email, order number,
+  copyright notice) and a faint diagonal email watermark, and the document
+  metadata names the licensee. It is sent as `application/octet-stream` with
+  `Cache-Control: private, no-store`, so opening the URL directly does not show
+  or save a PDF. The browser renders pages with pdf.js. No storage URLs reach
+  the browser.
+- A technical user can still extract the file from the browser, and an expert
+  can edit the watermark out. Screenshots, screen recording and manual copying
+  **cannot be prevented** either. These measures stop casual downloading and
+  make leaks traceable to the buyer.
 
 ## 5. Route architecture
 
@@ -197,17 +205,18 @@ microservices.
 ## 8. Implementation notes (as built)
 
 - **PDF pipeline.** The upload streams to a temp file and is checked by its file
-  signature. The original goes to private storage. A worker thread rasterises pages with
-  pdfjs-dist and @napi-rs/canvas; sharp turns them into WebP page assets in a versioned
-  "page set". The live page set is swapped only after the whole render succeeds.
-  Unfinished jobs resume at boot. The table of contents is pre-filled from the PDF's
-  bookmarks.
+  signature. The original goes to private storage. Processing only analyses the PDF
+  (pdf-lib validates it; pdfjs-dist reads the page count, page size and bookmarks, which
+  pre-fill the table of contents), so it is fast and light on memory. Personal copies are
+  stamped with pdf-lib the first time a buyer opens the book and cached in private
+  storage per "page set" version; the public sample is a separate PDF of the preview
+  pages stamped "SAMPLE". Unfinished jobs resume at boot.
 - **Storage drivers.** `local` (development) and `s3` (any S3-compatible service). Both
   sit behind one interface, and storage keys never leave the API.
 - **Reader.** It uses the `page-flip` library (MIT) directly, not the `react-pageflip`
   wrapper, which is unmaintained and has StrictMode issues. Page nodes are created
-  imperatively; images near the current page load lazily. Every page request re-checks
-  the entitlement and returns a per-user watermarked WebP.
+  imperatively; pdf.js renders pages near the current page in the browser. Opening the
+  book re-checks the entitlement and downloads the buyer's watermarked copy.
 - **Payments.** Gateway calls go through a `PaymentGateway` interface, implemented over
   Razorpay REST; tests substitute a fake. Fulfilment is idempotent across the browser
   verify call, webhooks and admin reconciliation.

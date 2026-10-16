@@ -110,10 +110,10 @@ export default async function ProductPage({ params }: PageProps<"/ebooks/[slug]"
             </section>
           )}
 
-          {product.samples.length > 0 && (
+          {product.sample && (
             <section className="space-y-3">
               <h2 className="text-xl font-semibold">Read a sample</h2>
-              <SamplePages title={product.title} samples={product.samples} />
+              <SamplePages title={product.title} sample={product.sample} />
             </section>
           )}
 

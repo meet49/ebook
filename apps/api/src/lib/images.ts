@@ -31,26 +31,3 @@ export async function processCover(input: Buffer): Promise<{ data: Buffer; width
   return { data, width: info.width, height: info.height };
 }
 
-function sampleOverlay(width: number, height: number, label: string): Buffer {
-  const fontSize = Math.round(width / 18);
-  const rows = Math.ceil(height / (fontSize * 6)) + 2;
-  const lines = Array.from({ length: rows }, (_, i) => {
-    const y = i * fontSize * 6;
-    return `<text x="${width / 2}" y="${y}" text-anchor="middle">${label}</text>`;
-  }).join('');
-  return Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-      <g transform="rotate(-30 ${width / 2} ${height / 2})" fill="rgba(79,70,229,0.13)"
-         font-family="Helvetica, Arial, sans-serif" font-size="${fontSize}" font-weight="700">${lines}</g>
-    </svg>`,
-  );
-}
-
-/** Downscaled, watermarked rendition for public sample pages. */
-export async function sampleImage(page: Buffer, label: string): Promise<Buffer> {
-  const resized = await sharp(page).resize({ width: 1000, withoutEnlargement: true }).toBuffer({ resolveWithObject: true });
-  return sharp(resized.data)
-    .composite([{ input: sampleOverlay(resized.info.width, resized.info.height, label) }])
-    .webp({ quality: 72 })
-    .toBuffer();
-}

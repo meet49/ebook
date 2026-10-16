@@ -6,6 +6,7 @@ import type { Readable } from 'node:stream';
  */
 export interface ObjectStorage {
   put(key: string, body: Buffer | Readable, contentType: string): Promise<void>;
+  exists(key: string): Promise<boolean>;
   getStream(key: string): Promise<Readable>;
   getBuffer(key: string): Promise<Buffer>;
   delete(key: string): Promise<void>;

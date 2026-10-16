@@ -30,6 +30,12 @@ export function setStorage(next: ObjectStorage): void {
 export const storageKeys = {
   original: (productId: string, assetId: string) => `products/${productId}/original/${assetId}.pdf`,
   cover: (productId: string, assetId: string) => `products/${productId}/cover/${assetId}.webp`,
-  page: (productId: string, setId: string, page: number) => `products/${productId}/pages/${setId}/${page}.webp`,
-  pageSet: (productId: string, setId: string) => `products/${productId}/pages/${setId}/`,
+  /** A buyer's personal, watermarked copy of one uploaded PDF. */
+  licensed: (productId: string, setId: string, userId: string) => `products/${productId}/licensed/${setId}/${userId}.pdf`,
+  licensedSet: (productId: string, setId: string) => `products/${productId}/licensed/${setId}/`,
+  /** Public sample built from the chosen preview pages. */
+  sample: (productId: string, setId: string, pages: number[]) => `products/${productId}/samples/${setId}/${pages.join('-')}.pdf`,
+  sampleSet: (productId: string, setId: string) => `products/${productId}/samples/${setId}/`,
+  /** Page images from the earlier rendering pipeline (cleaned up on re-upload). */
+  legacyPageSet: (productId: string, setId: string) => `products/${productId}/pages/${setId}/`,
 };

@@ -2,6 +2,7 @@ import {
   DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   NoSuchKey,
   S3Client,
@@ -42,6 +43,18 @@ export class S3Storage implements ObjectStorage {
       client: this.client,
       params: { Bucket: this.bucket, Key: key, Body: body, ContentType: contentType },
     }).done();
+  }
+
+  async exists(key: string): Promise<boolean> {
+    assertSafeKey(key);
+    try {
+      await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
+      return true;
+    } catch (err) {
+      const e = err as { name?: string; $metadata?: { httpStatusCode?: number } };
+      if (e.name === 'NotFound' || e.$metadata?.httpStatusCode === 404) return false;
+      throw err;
+    }
   }
 
   async getStream(key: string): Promise<Readable> {

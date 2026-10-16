@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { ChevronLeft, ChevronRight, Eye, FileUp, ImageUp, RefreshCw } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -10,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
-import { adminPageUrl, useProductAction, useSetProductCache } from "@/lib/admin-products";
+import { PdfPageImage } from "@/components/products/sample-pages";
+import { Skeleton } from "@/components/ui/skeleton";
+import { adminPdfUrl, useProductAction, useSetProductCache } from "@/lib/admin-products";
+import { usePdfDocument } from "@/lib/pdf-client";
 import { errorMessage } from "@/lib/api";
 import { uploadFile } from "@/lib/upload";
 
@@ -35,7 +37,7 @@ function useUploader(productId: string, kind: "cover" | "pdf") {
     try {
       const { product } = await uploadFile<{ product: AdminProduct }>(`/admin/products/${productId}/${kind}`, file, setProgress);
       setCache(product);
-      toast.success(kind === "cover" ? "Cover updated" : "PDF uploaded — processing pages…");
+      toast.success(kind === "cover" ? "Cover updated" : "PDF uploaded — reading pages…");
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -86,7 +88,7 @@ export function ProductFiles({ product }: { product: AdminProduct }) {
       <Card>
         <CardHeader>
           <CardTitle>eBook PDF</CardTitle>
-          <CardDescription>Stored privately. Readers only ever see rendered, watermarked pages.</CardDescription>
+          <CardDescription>Stored privately. Each buyer gets a personal copy with their email watermarked on every page, readable only in the ReadnShare reader.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {product.pdf ? (
@@ -111,7 +113,7 @@ export function ProductFiles({ product }: { product: AdminProduct }) {
           {busy && (
             <div className="space-y-1" aria-live="polite">
               <p className="flex items-center gap-2 text-sm">
-                <Spinner /> {processing.total ? `Rendering page ${processing.done} of ${processing.total}…` : "Preparing pages…"}
+                <Spinner /> Reading the PDF (pages and chapters)…
               </p>
               <Progress value={processing.total ? Math.round((processing.done / processing.total) * 100) : 0} />
             </div>
@@ -157,6 +159,8 @@ export function ProductFiles({ product }: { product: AdminProduct }) {
 
 function PageViewer({ product, open, onOpenChange }: { product: AdminProduct; open: boolean; onOpenChange: (o: boolean) => void }) {
   const [page, setPage] = useState(1);
+  // Loaded only while the viewer is open.
+  const { doc } = usePdfDocument(open ? adminPdfUrl(product.id, product.updatedAt) : null);
   const last = product.pageCount;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -164,9 +168,9 @@ function PageViewer({ product, open, onOpenChange }: { product: AdminProduct; op
         <DialogTitle className="text-base">
           {product.title} — page {page} of {last}
         </DialogTitle>
-        <DialogDescription className="sr-only">Admin preview of the rendered eBook pages.</DialogDescription>
+        <DialogDescription className="sr-only">Admin preview of the eBook pages.</DialogDescription>
         <div className="relative mx-auto aspect-[1/1.414] max-h-[75vh] w-full overflow-hidden rounded-md border bg-white">
-          <Image src={adminPageUrl(product.id, page, product.updatedAt)} alt={`Page ${page}`} fill unoptimized sizes="672px" className="object-contain" />
+          {doc ? <PdfPageImage key={page} doc={doc} page={page} width={680} alt={`Page ${page}`} className="h-full w-full object-contain" /> : <Skeleton className="h-full w-full" />}
         </div>
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>

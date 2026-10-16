@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import sharp from 'sharp';
 import { Entitlement } from '../src/models/Entitlement';
 import { Product } from '../src/models/Product';
 import { processingIdle } from '../src/modules/products/processing';
-import { makeImage, makePdf } from './fixtures';
+import { binary, makeImage, makePdf, pdfText } from './fixtures';
 import { agent, createUser } from './helpers';
 
 const PASSWORD = 'pass-word-1';
@@ -34,44 +33,62 @@ async function owner(email = `reader${++n}@example.com`) {
   return a;
 }
 
+const READER = { 'x-readnshare-reader': '1' };
+const book = (a: ReturnType<typeof agent>) => a.get(`/api/v1/reader/${productId}/book`).set(READER).buffer(true).parse(binary);
+
 describe('reader access', () => {
-  it('requires sign-in and an active entitlement for every page', async () => {
+  it('requires sign-in and an active entitlement for the book', async () => {
     const anon = agent();
     await anon.get('/api/v1/reader/by-slug/reader-book').expect(401);
-    await anon.get(`/api/v1/reader/${productId}/pages/1`).expect(401);
+    await book(anon).expect(401);
 
     const stranger = await login(`stranger${++n}@example.com`);
     await stranger.get('/api/v1/reader/by-slug/reader-book').expect(403);
-    await stranger.get(`/api/v1/reader/${productId}/pages/1`).expect(403);
+    await book(stranger).expect(403);
   });
 
-  it('serves a manifest and watermarked, privately cached pages to owners', async () => {
+  it("delivers the owner's personal, watermarked copy only to the reader", async () => {
     const a = await owner('owner@example.com');
     const manifest = await a.get('/api/v1/reader/by-slug/reader-book').expect(200);
-    expect(manifest.body).toMatchObject({ pageCount: 4, progress: { page: 1 }, bookmarks: [] });
+    expect(manifest.body).toMatchObject({ pageCount: 4, progress: { page: 1 }, bookmarks: [], readerHeader: 'x-readnshare-reader' });
     expect(JSON.stringify(manifest.body)).not.toMatch(/storageKey|products\/[a-f0-9]{24}\//);
 
-    const page = await a.get(manifest.body.pageUrlTemplate.replace('{page}', '2')).buffer(true).parse((res, cb) => {
-      const chunks: Buffer[] = [];
-      res.on('data', (c: Buffer) => chunks.push(c));
-      res.on('end', () => cb(null, Buffer.concat(chunks)));
-    });
-    expect(page.status).toBe(200);
-    expect(page.headers['content-type']).toBe('image/webp');
-    expect(page.headers['cache-control']).toContain('private');
-    expect((await sharp(page.body as Buffer).metadata()).format).toBe('webp');
+    // Pasting the URL into a browser (no reader header) does not return the PDF.
+    const direct = await a.get(manifest.body.bookUrl);
+    expect(direct.status).toBe(403);
+    expect(direct.body.error.code).toBe('READER_ONLY');
 
-    await a.get(`/api/v1/reader/${productId}/pages/5`).expect(404);
-    await a.get(`/api/v1/reader/${productId}/pages/0`).expect(404);
+    const res = await a.get(manifest.body.bookUrl).set(READER).buffer(true).parse(binary).expect(200);
+    expect(res.headers['content-type']).toBe('application/octet-stream');
+    expect(res.headers['cache-control']).toContain('no-store');
+    const { pages, text } = await pdfText(res.body as Buffer);
+    expect(pages).toBe(4);
+    expect(text).toContain('Chapter 2');
+    expect(text).toContain('Licensed to owner@example.com');
+    expect(text).toContain('Unauthorized copying');
+
+    // The copy is cached: a second open returns identical bytes.
+    const again = await book(a).expect(200);
+    expect(Buffer.compare(again.body as Buffer, res.body as Buffer)).toBe(0);
+  });
+
+  it('gives every buyer their own copy', async () => {
+    const first = await owner('first@example.com');
+    const second = await owner('second@example.com');
+    const t1 = (await pdfText((await book(first).expect(200)).body as Buffer)).text;
+    const t2 = (await pdfText((await book(second).expect(200)).body as Buffer)).text;
+    expect(t1).toContain('first@example.com');
+    expect(t1).not.toContain('second@example.com');
+    expect(t2).toContain('second@example.com');
   });
 
   it('keeps archived books readable for owners but blocks refunded ones', async () => {
     const a = await owner();
     await Product.updateOne({ _id: productId }, { $set: { status: 'archived' } });
-    await a.get(`/api/v1/reader/${productId}/pages/1`).expect(200);
+    await book(a).expect(200);
 
     await Entitlement.updateMany({}, { $set: { status: 'revoked' } });
-    await a.get(`/api/v1/reader/${productId}/pages/1`).expect(403);
+    await book(a).expect(403);
   });
 });
 

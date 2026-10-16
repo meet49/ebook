@@ -15,8 +15,7 @@ const externalizeDeps = {
 
 await rm('dist', { recursive: true, force: true });
 await build({
-  // The worker must stay a separate file: it is started with `new Worker(url)` at runtime.
-  entryPoints: ['src/server.ts', 'src/scripts/seed-admin.ts', 'src/workers/pdf-render.worker.ts'],
+  entryPoints: ['src/server.ts', 'src/scripts/seed-admin.ts'],
   outdir: 'dist',
   outbase: 'src',
   bundle: true,

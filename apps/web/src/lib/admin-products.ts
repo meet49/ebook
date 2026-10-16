@@ -64,5 +64,4 @@ export function useProductAction(id: string) {
   });
 }
 
-export const adminPageUrl = (id: string, page: number, version: string) =>
-  `/api/v1/admin/products/${id}/pages/${page}?v=${encodeURIComponent(version)}`;
+export const adminPdfUrl = (id: string, version: string) => `/api/v1/admin/products/${id}/pdf?v=${encodeURIComponent(version)}`;

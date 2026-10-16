@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { PageFlip } from "page-flip";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 import {
   ArrowLeft,
   Bookmark,
@@ -22,12 +23,15 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { errorMessage } from "@/lib/api";
+import { renderPageUrl } from "@/lib/pdf-client";
 import { saveProgress, useBookmarkMutations, type ReaderManifest } from "@/lib/reader";
 import { cn } from "@/lib/utils";
 
-/** How many pages around the current one get their image loaded. */
+/** How many pages around the current one are drawn ahead of time. */
 const PRELOAD_BEHIND = 2;
 const PRELOAD_AHEAD = 4;
+/** Pages are drawn at this CSS width (times the screen's pixel ratio, max 2x). */
+const RENDER_CSS_WIDTH = 900;
 
 function readPref(key: string): boolean {
   try {
@@ -45,7 +49,7 @@ function writePref(key: string, value: boolean) {
   }
 }
 
-export function BookReader({ manifest, startPage }: { manifest: ReaderManifest; startPage: number }) {
+export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManifest; startPage: number; doc: PDFDocumentProxy }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<HTMLDivElement>(null);
   const flipRef = useRef<PageFlip | null>(null);
@@ -63,22 +67,65 @@ export function BookReader({ manifest, startPage }: { manifest: ReaderManifest; 
   const { add, remove } = useBookmarkMutations(manifest.slug, manifest.productId);
   const total = manifest.pageCount;
 
-  const pageUrl = useCallback((n: number) => manifest.pageUrlTemplate.replace("{page}", String(n)), [manifest.pageUrlTemplate]);
-
-  // Lazily attach image sources near the current page; far pages stay empty to save bandwidth.
+  // Pages are drawn from the PDF in the browser, one at a time, only near the current page.
+  // Pages far behind are released again so long books stay light on phones.
+  const renderQueue = useRef<Promise<void>>(Promise.resolve());
+  const rendered = useRef(new Map<number, string>());
   const preload = useCallback(
     (current: number) => {
-      imagesRef.current.forEach((img, i) => {
-        const n = i + 1;
-        if (n >= current - PRELOAD_BEHIND && n <= current + PRELOAD_AHEAD && !img.getAttribute("src")) img.src = pageUrl(n);
-      });
+      const want = new Set<number>();
+      for (let n = Math.max(1, current - PRELOAD_BEHIND); n <= Math.min(total, current + PRELOAD_AHEAD); n++) want.add(n);
+      for (const [n, url] of rendered.current) {
+        if (n < current - PRELOAD_BEHIND * 3 || n > current + PRELOAD_AHEAD * 3) {
+          URL.revokeObjectURL(url);
+          rendered.current.delete(n);
+          imagesRef.current[n - 1]?.removeAttribute("src");
+        }
+      }
+      // Current page first, then the ones ahead, then behind.
+      const order = [...want].sort((a, b) => Math.abs(a - current) - Math.abs(b - current) || b - a);
+      for (const n of order) {
+        if (rendered.current.has(n)) continue;
+        rendered.current.set(n, "");
+        renderQueue.current = renderQueue.current.then(async () => {
+          try {
+            const url = await renderPageUrl(doc, n, RENDER_CSS_WIDTH);
+            if (!rendered.current.has(n)) return URL.revokeObjectURL(url);
+            rendered.current.set(n, url);
+            const img = imagesRef.current[n - 1];
+            if (img) img.src = url;
+          } catch {
+            rendered.current.delete(n);
+            if (!warnedRef.current) {
+              warnedRef.current = true;
+              toast.error("A page could not be displayed. Try reopening the book.");
+            }
+          }
+        });
+      }
     },
-    [pageUrl],
+    [doc, total],
+  );
+
+  useEffect(
+    () => () => {
+      for (const url of rendered.current.values()) if (url) URL.revokeObjectURL(url);
+      rendered.current.clear();
+    },
+    [],
   );
 
   useEffect(() => {
-    const host = bookRef.current;
-    if (!host) return;
+    const wrapper = bookRef.current;
+    if (!wrapper) return;
+    // page-flip removes its container element when destroyed, so build a fresh one each time
+    // (React re-runs this effect in development and whenever the book is re-initialised).
+    const host = document.createElement("div");
+    host.className = "reader-book";
+    wrapper.replaceChildren(host);
+    // Fresh page elements: forget pages drawn for a previous build.
+    for (const url of rendered.current.values()) if (url) URL.revokeObjectURL(url);
+    rendered.current.clear();
 
     // page-flip moves these nodes around itself, so they are created outside React's tree.
     const pages: HTMLElement[] = [];
@@ -91,26 +138,25 @@ export function BookReader({ manifest, startPage }: { manifest: ReaderManifest; 
       img.alt = `Page ${n}`;
       img.draggable = false;
       img.decoding = "async";
-      img.addEventListener("error", () => {
-        if (warnedRef.current) return;
-        warnedRef.current = true;
-        toast.error("Some pages could not load. If you are flipping very fast, wait a moment and try again.");
-      });
       el.appendChild(img);
       pages.push(el);
       imagesRef.current.push(img);
     }
     host.replaceChildren(...pages);
 
-    const width = 560;
+    // Fit a whole page inside the visible area: the height limit decides, width follows the page ratio.
+    const ratio = manifest.pageWidth / manifest.pageHeight;
+    const maxHeight = Math.max(300, Math.floor(wrapper.clientHeight || window.innerHeight - 140));
+    const maxWidth = Math.max(200, Math.floor(maxHeight * ratio));
+    const width = Math.min(560, maxWidth);
     const flip = new PageFlip(host, {
       width,
-      height: Math.round((width * manifest.pageHeight) / manifest.pageWidth),
+      height: Math.round(width / ratio),
       size: "stretch",
-      minWidth: 260,
-      maxWidth: 1100,
-      minHeight: 360,
-      maxHeight: 1600,
+      minWidth: 200,
+      maxWidth,
+      minHeight: 280,
+      maxHeight,
       startPage: Math.max(0, startPageRef.current - 1),
       showCover: true,
       usePortrait: true,
@@ -128,6 +174,7 @@ export function BookReader({ manifest, startPage }: { manifest: ReaderManifest; 
     flip.on("flip", (e) => {
       const current = e.data + 1;
       setPage(current);
+      setSpread(flip.getOrientation() === "landscape");
       preload(current);
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => void saveProgress(manifest.productId, current).catch(() => {}), 800);
@@ -139,6 +186,11 @@ export function BookReader({ manifest, startPage }: { manifest: ReaderManifest; 
       flipRef.current = null;
       try {
         flip.destroy();
+      } catch {
+        /* already torn down */
+      }
+      try {
+        host.remove();
       } catch {
         /* already torn down */
       }
@@ -237,8 +289,8 @@ export function BookReader({ manifest, startPage }: { manifest: ReaderManifest; 
         >
           <ChevronLeft className="size-7" />
         </button>
-        <div className="flex h-full w-full max-w-[1200px] items-center justify-center">
-          <div ref={bookRef} className="reader-book" />
+        <div className="flex h-full w-full max-w-300 items-center justify-center">
+          <div ref={bookRef} data-reader-book className="flex h-full w-full items-center justify-center" />
         </div>
         <button
           type="button"

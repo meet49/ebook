@@ -51,7 +51,9 @@ export function toDetail(p: ProductDoc): ProductDetail {
     benefits: p.benefits,
     language: p.language ?? 'English',
     toc: p.toc.map((t) => ({ title: t.title ?? '', page: t.page ?? 1 })),
-    samples: availablePreviewPages(p).map((page) => ({ page, url: `${API}/products/${p.slug}/samples/${page}` })),
+    sample: availablePreviewPages(p).length
+      ? { url: `${API}/products/${p.slug}/sample?v=${p.pageSetId!.toString().slice(-6)}-${availablePreviewPages(p).join('.')}`, pages: availablePreviewPages(p) }
+      : null,
   };
 }
 

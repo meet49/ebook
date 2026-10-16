@@ -1,12 +1,11 @@
 import { Router, type Request } from 'express';
 import { catalogQuerySchema, type ProductSort } from '@ebook/shared';
 import { notFound } from '../../lib/errors';
-import { sampleImage } from '../../lib/images';
-import { sendBuffer, sendObject } from '../../lib/serve';
-import { storage } from '../../lib/storage';
+import { sendObject } from '../../lib/serve';
 import { parse } from '../../middleware/validate';
 import { Product, type ProductDoc } from '../../models/Product';
 import { ProductAsset } from '../../models/ProductAsset';
+import { sampleKey } from '../library/copies';
 import { availablePreviewPages, toDetail, toSummary } from './products.service';
 
 export const publicProductsRouter = Router();
@@ -68,13 +67,11 @@ publicProductsRouter.get('/:slug/cover', async (req, res) => {
   await sendObject(res, asset.storageKey, 'image/webp', 'public, max-age=86400');
 });
 
-/** Public sample pages: only pages the admin marked as previews, downscaled and watermarked. */
-publicProductsRouter.get('/:slug/samples/:page', async (req, res) => {
+/** Public sample: only the pages the admin chose as previews, stamped "SAMPLE". */
+publicProductsRouter.get('/:slug/sample', async (req, res) => {
   const product = await loadPublished(req);
-  const page = Number(req.params.page);
-  if (!Number.isInteger(page) || !availablePreviewPages(product).includes(page)) throw notFound('Sample not available');
-  const asset = await ProductAsset.findOne({ sourceAssetId: product.pageSetId, kind: 'page_image', page });
-  if (!asset) throw notFound('Sample not available');
-  const image = await sampleImage(await storage().getBuffer(asset.storageKey), 'SAMPLE');
-  await sendBuffer(res, image, 'image/webp', 'public, max-age=3600');
+  const pages = availablePreviewPages(product);
+  if (!pages.length) throw notFound('No sample available');
+  const key = await sampleKey(product, pages);
+  await sendObject(res, key, 'application/pdf', 'public, max-age=3600');
 });

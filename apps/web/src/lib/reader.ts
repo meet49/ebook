@@ -14,7 +14,9 @@ export interface ReaderManifest {
   pageHeight: number;
   toc: TocEntry[];
   coverUrl: string | null;
-  pageUrlTemplate: string;
+  /** The buyer's personal watermarked PDF; fetch it with the reader header. */
+  bookUrl: string;
+  readerHeader: string;
   progress: { page: number; percent: number };
   bookmarks: { id: string; page: number; label: string }[];
 }

@@ -59,9 +59,9 @@ sign-in link 30 min (72 h for the link in the purchase email).
 |---|---|---|
 | GET | `/products?q&category&sort&featured&page&pageSize` | Published only. `sort`: `featured` / `newest` / `price_asc` / `price_desc`. Returns `ProductSummary[]` |
 | GET | `/products/categories` | `{categories: string[]}` |
-| GET | `/products/:slug` | `ProductDetail`: description, benefits, TOC, `samples[]` |
+| GET | `/products/:slug` | `ProductDetail`: description, benefits, TOC, `sample` (`{ url, pages }` or `null`) |
 | GET | `/products/:slug/cover` | WebP, publicly cacheable |
-| GET | `/products/:slug/samples/:page` | Only pages the admin chose as previews; downscaled and watermarked "SAMPLE" |
+| GET | `/products/:slug/sample` | PDF of only the pages the admin chose as previews, stamped "SAMPLE" |
 
 Responses never include storage keys or commission settings.
 
@@ -94,8 +94,8 @@ A refunded order never regains access from a late event.
 | PUT | `/me/progress/:productId` | `{page}` → `{page, percent}`; requires entitlement |
 | GET / POST | `/me/bookmarks` | POST `{productId, page, label?}` (upsert per page) |
 | DELETE | `/me/bookmarks/:id` | Own bookmarks only |
-| GET | `/reader/by-slug/:slug` | Manifest: page count, size, TOC, progress, bookmarks, `pageUrlTemplate`. `403` without an entitlement |
-| GET | `/reader/:productId/pages/:n` | Watermarked WebP (email + order number + page). Entitlement checked on **every** request. `Cache-Control: private`. 300 pages per 5 min per user |
+| GET | `/reader/by-slug/:slug` | Manifest: page count, size, TOC, progress, bookmarks, `bookUrl`, `readerHeader`. `403` without an entitlement |
+| GET | `/reader/:productId/book` | The buyer's personal PDF: footer (email, order number, copyright) and a faint email watermark on every page. Requires the `x-readnshare-reader: 1` header (else `403 READER_ONLY`) and an active entitlement. Sent as `application/octet-stream`, `Cache-Control: private, no-store`. 60 per hour per user |
 | GET | `/reader/:productId/cover` | Cover for owners (works for archived books) |
 
 ## Affiliates
@@ -126,7 +126,7 @@ A refunded order never regains access from a late event.
 | Area | Endpoints |
 |---|---|
 | Users | `GET /users?q&role`, `PATCH /users/:id/status` `{status}` (suspending revokes sessions) |
-| Products | `GET /products?q&status`, `POST /products`, `GET/PUT /products/:id`, `POST /products/:id/{publish,unpublish,archive,restore,reprocess}`, `POST /products/:id/cover` (image), `POST /products/:id/pdf` (PDF → `202`, rendered in the background), `GET /products/:id/cover`, `GET /products/:id/pages/:n` |
+| Products | `GET /products?q&status`, `POST /products`, `GET/PUT /products/:id`, `POST /products/:id/{publish,unpublish,archive,restore,reprocess}`, `POST /products/:id/cover` (image), `POST /products/:id/pdf` (PDF → `202`, analysed in the background), `GET /products/:id/cover`, `GET /products/:id/pdf` (original, admin only) |
 | Orders | `GET /orders?q&status`, `GET /orders/:id` (with webhook events and commission), `POST /orders/:id/refund` `{amountPaise?, reason}` (real Razorpay refund), `POST /orders/:id/reconcile` (looks up captured payments at Razorpay) |
 | Affiliates | `GET /affiliates?status`, `POST /affiliates/:id/{approve,reject,suspend,reinstate}` `{note?}` |
 | Commissions | `GET /commissions?status&affiliateId` (with totals and history), `POST /commissions/approve` `{ids}`, `POST /commissions/:id/reverse` `{note}` |

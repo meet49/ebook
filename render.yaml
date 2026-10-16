@@ -27,8 +27,6 @@ services:
       # Linux (glibc) keeps fragmented native memory per thread arena; 2 arenas keeps it low.
       - key: MALLOC_ARENA_MAX
         value: "2"
-      - key: PAGE_RENDER_WIDTH
-        value: "1100"
       - key: MAX_PDF_MB
         value: "60"
       - key: TRUST_PROXY

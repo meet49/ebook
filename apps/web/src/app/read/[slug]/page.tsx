@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useMemo } from "react";
 import { Lock } from "lucide-react";
 import { RoleGate } from "@/components/auth/role-gate";
 import { BookReader } from "@/components/reader/book-reader";
@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { ApiError } from "@/lib/api";
-import { useManifest } from "@/lib/reader";
+import { usePdfDocument } from "@/lib/pdf-client";
+import { useManifest, type ReaderManifest } from "@/lib/reader";
 
 export default function ReadPage() {
   return (
@@ -58,13 +59,34 @@ function Reader() {
     );
   }
   const startPage = Number.isInteger(requested) && requested >= 1 && requested <= data.pageCount ? requested : data.progress.page;
-  return <BookReader manifest={data} startPage={startPage} />;
+  return <LoadedBook manifest={data} startPage={startPage} />;
 }
 
-function Loading() {
+/** Downloads the buyer's personal copy (stamped on first open) and hands it to the reader. */
+function LoadedBook({ manifest, startPage }: { manifest: ReaderManifest; startPage: number }) {
+  const headers = useMemo(() => ({ [manifest.readerHeader]: "1" }), [manifest.readerHeader]);
+  const { doc, error } = usePdfDocument(manifest.bookUrl, headers);
+  if (error) {
+    return (
+      <Empty className="min-h-dvh">
+        <EmptyHeader>
+          <EmptyTitle>Couldn&apos;t open this eBook</EmptyTitle>
+          <EmptyDescription>{error.message}</EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button onClick={() => window.location.reload()}>Try again</Button>
+        </EmptyContent>
+      </Empty>
+    );
+  }
+  if (!doc) return <Loading label="Preparing your personal copy…" />;
+  return <BookReader manifest={manifest} startPage={startPage} doc={doc} />;
+}
+
+function Loading({ label = "Opening your book…" }: { label?: string }) {
   return (
     <div className="flex min-h-dvh items-center justify-center gap-2 text-sm" role="status">
-      <Spinner /> Opening your book…
+      <Spinner /> {label}
     </div>
   );
 }

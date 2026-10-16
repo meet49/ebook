@@ -17,8 +17,8 @@ Docs: [Architecture & plan](docs/ARCHITECTURE.md) · [API reference](docs/API.md
 - Node.js 22.18 or newer (developed on 22.22).
 - MongoDB 7 or newer, running as a **replica set**: either MongoDB Atlas, or the included
   `docker-compose.yml` (MongoDB + MinIO).
-- No system packages. PDF rendering uses pdfjs and @napi-rs/canvas, which ship prebuilt
-  binaries.
+- No system packages. The API reads and stamps PDFs with pdf-lib and pdfjs-dist; pages
+  are rendered in the browser.
 
 ## Local setup
 

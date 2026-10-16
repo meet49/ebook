@@ -3,7 +3,7 @@ import request from 'supertest';
 import type { AdminProduct } from '@ebook/shared';
 import { ProductAsset } from '../src/models/ProductAsset';
 import { processingIdle } from '../src/modules/products/processing';
-import { makeImage, makePdf } from './fixtures';
+import { binary, makeImage, makePdf, pdfText } from './fixtures';
 import { agent, app, createUser } from './helpers';
 
 const PASSWORD = 'admin-pass-1';
@@ -114,7 +114,7 @@ describe('admin product management', () => {
     expect(await ProductAsset.countDocuments({ kind: 'original_pdf' })).toBe(0);
   });
 
-  it('renders an uploaded PDF into page images', async () => {
+  it('analyses an uploaded PDF without rendering page images', async () => {
     const p = await createProduct();
     const res = await uploadPdf(p.id, 3);
     expect(res.status).toBe(202);
@@ -125,22 +125,21 @@ describe('admin product management', () => {
     expect(after.pageCount).toBe(3);
     expect(after.previewPages).toEqual([1, 2, 3]);
     expect(after.pdf).toMatchObject({ filename: 'book.pdf' });
-    expect(await ProductAsset.countDocuments({ kind: 'page_image' })).toBe(3);
+    expect(await ProductAsset.countDocuments({ kind: 'page_image' })).toBe(0);
 
-    const page = await admin.get(`/api/v1/admin/products/${p.id}/pages/2`).expect(200);
-    expect(page.headers['content-type']).toBe('image/webp');
-    expect(page.headers['cache-control']).toContain('no-store');
-    await admin.get(`/api/v1/admin/products/${p.id}/pages/4`).expect(404);
+    const pdf = await admin.get(`/api/v1/admin/products/${p.id}/pdf`).buffer(true).parse(binary).expect(200);
+    expect(pdf.headers['content-type']).toBe('application/pdf');
+    expect(pdf.headers['cache-control']).toContain('no-store');
+    expect((await pdfText(pdf.body as Buffer)).pages).toBe(3);
   });
 
-  it('swaps in a re-uploaded PDF and removes the old pages', async () => {
+  it('swaps in a re-uploaded PDF and removes the old one', async () => {
     const p = await createProduct();
     await uploadPdf(p.id, 3);
     await uploadPdf(p.id, 2);
     const after = (await admin.get(`/api/v1/admin/products/${p.id}`)).body.product as AdminProduct;
     expect(after.pageCount).toBe(2);
     expect(after.previewPages).toEqual([1, 2]);
-    expect(await ProductAsset.countDocuments({ kind: 'page_image' })).toBe(2);
     expect(await ProductAsset.countDocuments({ kind: 'original_pdf' })).toBe(1);
   });
 
@@ -199,7 +198,7 @@ describe('public catalog', () => {
     for (const body of [JSON.stringify(list.body), JSON.stringify(detail.body)]) {
       expect(body).not.toMatch(/storageKey|original|affiliate|\.pdf/);
     }
-    expect(detail.body.product).toMatchObject({ description: 'Learn to focus.', samples: expect.any(Array) });
+    expect(detail.body.product).toMatchObject({ description: 'Learn to focus.', sample: { pages: [1, 2, 3] } });
   });
 
   it('searches, filters by category and sorts by price', async () => {
@@ -220,16 +219,20 @@ describe('public catalog', () => {
     await request(app).get('/api/v1/products?sort=bogus').expect(400);
   });
 
-  it('serves watermarked samples only for chosen preview pages', async () => {
+  it('serves a public sample PDF containing only the chosen preview pages', async () => {
     const live = await publishedProduct({}, 3);
     await admin.put(`/api/v1/admin/products/${live.id}`).send(draft({ slug: live.slug, previewPages: [2] })).expect(200);
 
     const detail = await request(app).get(`/api/v1/products/${live.slug}`);
-    expect(detail.body.product.samples).toEqual([{ page: 2, url: `/api/v1/products/${live.slug}/samples/2` }]);
+    expect(detail.body.product.sample.pages).toEqual([2]);
+    expect(detail.body.product.sample.url.startsWith(`/api/v1/products/${live.slug}/sample?v=`)).toBe(true);
 
-    const sample = await request(app).get(`/api/v1/products/${live.slug}/samples/2`).expect(200);
-    expect(sample.headers['content-type']).toBe('image/webp');
-    await request(app).get(`/api/v1/products/${live.slug}/samples/1`).expect(404);
-    await request(app).get(`/api/v1/products/${live.slug}/samples/3`).expect(404);
+    const sample = await request(app).get(detail.body.product.sample.url).buffer(true).parse(binary).expect(200);
+    expect(sample.headers['content-type']).toBe('application/pdf');
+    const { pages, text } = await pdfText(sample.body as Buffer);
+    expect(pages).toBe(1);
+    expect(text).toContain('Chapter 2');
+    expect(text).not.toContain('Chapter 1');
+    expect(text).toContain('SAMPLE');
   });
 });

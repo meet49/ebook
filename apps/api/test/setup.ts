@@ -8,7 +8,6 @@ process.env.EMAIL_TRANSPORT = 'console';
 process.env.MONGODB_URI = inject('mongoUri');
 process.env.STORAGE_DRIVER = 'local';
 process.env.STORAGE_DIR = (await import('node:path')).join((await import('node:os')).tmpdir(), `ebook-test-storage-${process.pid}`);
-process.env.PAGE_RENDER_WIDTH = '600';
 process.env.DISABLE_RATE_LIMITS = '1';
 process.env.MIN_PAYOUT_PAISE = '10000';
 // Test-only secrets: signatures in tests are computed with these, exactly as Razorpay would.

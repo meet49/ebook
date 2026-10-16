@@ -55,8 +55,8 @@ export interface ProductDetail extends ProductSummary {
   benefits: string[];
   language: string;
   toc: TocEntry[];
-  /** Public sample page image URLs, in page order. */
-  samples: { page: number; url: string }[];
+  /** Public sample PDF made of the chosen preview pages (original page numbers in `pages`). */
+  sample: { url: string; pages: number[] } | null;
 }
 
 export type ProcessingStatus = 'none' | 'queued' | 'processing' | 'ready' | 'failed';

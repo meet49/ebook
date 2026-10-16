@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -23,7 +22,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { adminPageUrl } from "@/lib/admin-products";
+import { PdfPageImage } from "@/components/products/sample-pages";
+import { Skeleton } from "@/components/ui/skeleton";
+import { adminPdfUrl } from "@/lib/admin-products";
+import { usePdfDocument } from "@/lib/pdf-client";
 import { handleFormError } from "@/lib/forms";
 import { cn } from "@/lib/utils";
 
@@ -382,6 +384,7 @@ function PreviewPicker({
 }) {
   const [extra, setExtra] = useState("");
   const shown = Math.min(pageCount, 12);
+  const { doc } = usePdfDocument(adminPdfUrl(productId, version));
   const toggle = (n: number) => onChange(value.includes(n) ? value.filter((p) => p !== n) : [...value, n].sort((a, b) => a - b));
 
   return (
@@ -400,7 +403,7 @@ function PreviewPicker({
                 selected ? "border-primary ring-primary/30 ring-3" : "border-transparent opacity-70 hover:opacity-100",
               )}
             >
-              <Image src={adminPageUrl(productId, n, version)} alt={`Page ${n}`} fill unoptimized sizes="120px" className="object-cover object-top" />
+              {doc ? <PdfPageImage doc={doc} page={n} width={130} alt={`Page ${n}`} className="h-full w-full object-cover object-top" /> : <Skeleton className="h-full w-full" />}
               <span className="bg-background/90 absolute bottom-1 left-1 rounded px-1 text-xs font-medium">{n}</span>
             </button>
           );

@@ -27,6 +27,15 @@ export class LocalStorage implements ObjectStorage {
     else await pipeline(body, createWriteStream(file));
   }
 
+  async exists(key: string): Promise<boolean> {
+    try {
+      await stat(this.resolve(key));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async getStream(key: string): Promise<Readable> {
     const file = this.resolve(key);
     await this.assertExists(file, key);

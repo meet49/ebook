@@ -36,6 +36,9 @@ const productSchema = new Schema(
     },
 
     pageCount: { type: Number, default: 0 },
+    /** First page size in PDF points (aspect ratio for the reader). */
+    pageWidth: { type: Number, default: 595 },
+    pageHeight: { type: Number, default: 842 },
     toc: { type: [{ title: String, page: Number, _id: false }], default: [] },
     /** 1-based page numbers viewable publicly as samples. */
     previewPages: { type: [Number], default: [] },

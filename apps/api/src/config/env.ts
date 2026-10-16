@@ -47,8 +47,6 @@ const schema = z
     STORAGE_DIR: z.string().default('./storage'),
     MAX_PDF_MB: z.coerce.number().int().min(1).max(1024).default(200),
     MAX_COVER_MB: z.coerce.number().int().min(1).max(50).default(5),
-    /** Rendered page width in pixels. 1400 keeps text crisp on phones and laptops. */
-    PAGE_RENDER_WIDTH: z.coerce.number().int().min(600).max(3000).default(1400),
 
     S3_ENDPOINT: optionalString,
     S3_REGION: z.string().default('us-east-1'),
