@@ -1,3 +1,3 @@
 export const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME ?? "ReadnShare";
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-export const SUPPORT_EMAIL = "support@example.com";
+export const SUPPORT_EMAIL = "devlineinfotech@gmail.com";

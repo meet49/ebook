@@ -24,11 +24,13 @@ export async function SiteFooter() {
       ],
     },
     {
-      title: t.footer.legal,
+      title: t.footer.help,
       links: [
+        { href: "/contact", label: t.footer.contact },
         { href: "/legal/terms", label: t.footer.terms },
         { href: "/legal/privacy", label: t.footer.privacy },
         { href: "/legal/refunds", label: t.footer.refunds },
+        { href: "/legal/delivery", label: t.footer.delivery },
       ],
     },
   ];
