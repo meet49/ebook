@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BusinessDetails } from "@/components/shared/business-details";
 import { LegalPage } from "@/components/shared/legal-page";
 import { SITE_NAME, SUPPORT_EMAIL } from "@/lib/site";
 
@@ -26,6 +27,12 @@ export default function DeliveryPage() {
           as a downloadable file.
         </li>
       </ul>
+      <h2>Delivery time and charges</h2>
+      <ul>
+        <li>Delivery time: instant after payment verification. There is no shipping period.</li>
+        <li>Delivery charges: none.</li>
+        <li>Delivery area: available wherever the website can be opened; payments are accepted in Indian Rupees.</li>
+      </ul>
       <h2>If your eBook does not appear</h2>
       <p>
         Some payment methods take a little longer to confirm. If your book is not in your library within 30 minutes of a
@@ -35,9 +42,9 @@ export default function DeliveryPage() {
       </p>
       <h2>Contact</h2>
       <p>
-        Questions about delivery: <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> or our{" "}
-        <Link href="/contact">contact page</Link>.
+        Questions about delivery? See our <Link href="/contact">contact page</Link> or write to:
       </p>
+      <BusinessDetails />
     </LegalPage>
   );
 }

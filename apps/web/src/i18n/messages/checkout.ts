@@ -45,6 +45,13 @@ const en = {
   readNow: "Read now",
   signInToRead: "Sign in to read",
   secureNote: "Payments are processed securely by Razorpay. We never see your card details.",
+  agree: {
+    before: "By paying, you agree to our",
+    terms: "Terms & conditions",
+    and: "and",
+    refunds: "Cancellation & refund policy",
+    after: ". eBooks are delivered instantly to your online library.",
+  },
   confirmation: {
     loading: "Loading your order…",
     notFound: "We couldn't find this order",
@@ -125,6 +132,13 @@ const hi: CheckoutMessages = {
   readNow: "अभी पढ़ें",
   signInToRead: "पढ़ने के लिए साइन इन करें",
   secureNote: "पेमेंट Razorpay से पूरी तरह सुरक्षित होता है। आपके कार्ड की जानकारी हम कभी नहीं देखते।",
+  agree: {
+    before: "पेमेंट करके आप हमारी",
+    terms: "नियम और शर्तें",
+    and: "और",
+    refunds: "कैंसलेशन और रिफ़ंड पॉलिसी",
+    after: " से सहमत होते हैं। ई-बुक तुरंत आपकी ऑनलाइन लाइब्रेरी में मिलती है।",
+  },
   confirmation: {
     loading: "आपका ऑर्डर लोड हो रहा है…",
     notFound: "यह ऑर्डर नहीं मिला",

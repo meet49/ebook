@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
 import { InstallAppButton } from "@/components/pwa/install-app";
 import { getMessages } from "@/i18n/server";
-import { SITE_NAME, SUPPORT_EMAIL } from "@/lib/site";
+import { BUSINESS, SITE_NAME, SUPPORT_EMAIL } from "@/lib/site";
 
 export async function SiteFooter() {
   const t = (await getMessages()).common;
@@ -26,6 +26,7 @@ export async function SiteFooter() {
     {
       title: t.footer.help,
       links: [
+        { href: "/about", label: t.footer.about },
         { href: "/contact", label: t.footer.contact },
         { href: "/legal/terms", label: t.footer.terms },
         { href: "/legal/privacy", label: t.footer.privacy },
@@ -65,7 +66,10 @@ export async function SiteFooter() {
       </div>
       <div className="border-t">
         <div className="text-muted-foreground mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-6 text-xs sm:flex-row sm:px-6">
-          <span>{t.footer.rights(new Date().getFullYear(), SITE_NAME)}</span>
+          <span>
+            {t.footer.rights(new Date().getFullYear(), BUSINESS.legalName || SITE_NAME)}
+            {BUSINESS.legalName ? ` · ${SITE_NAME}` : ""}
+          </span>
           <span>{t.footer.madeIn}</span>
         </div>
       </div>

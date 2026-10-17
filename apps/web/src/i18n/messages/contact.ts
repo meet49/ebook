@@ -48,6 +48,11 @@ const en = {
     },
   ],
   policies: "Policies",
+  businessTitle: "Business details",
+  businessName: "Business name",
+  address: "Address",
+  phone: "Phone",
+  email: "Email",
 };
 
 export type ContactMessages = typeof en;
@@ -101,6 +106,11 @@ const hi: ContactMessages = {
     },
   ],
   policies: "पॉलिसी",
+  businessTitle: "बिज़नेस की जानकारी",
+  businessName: "बिज़नेस का नाम",
+  address: "पता",
+  phone: "फ़ोन",
+  email: "ईमेल",
 };
 
 export const contact = { en, hi };

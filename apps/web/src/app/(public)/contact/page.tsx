@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, ClipboardList, Mail, MessageCircleQuestion } from "lucide-react";
+import { ArrowRight, Building2, ClipboardList, Mail, MapPin, MessageCircleQuestion, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMessages } from "@/i18n/server";
-import { SITE_NAME, SUPPORT_EMAIL } from "@/lib/site";
+import { BUSINESS, SITE_NAME, SUPPORT_EMAIL } from "@/lib/site";
 import { CopyEmailButton } from "./copy-email";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -79,6 +79,38 @@ export default async function ContactPage() {
           </section>
         </div>
 
+        {(BUSINESS.legalName || BUSINESS.address || BUSINESS.phone) && (
+          <section className="bg-card mt-5 rounded-3xl border p-6 sm:p-8" aria-labelledby="contact-business">
+            <h2 id="contact-business" className="text-xl font-semibold">
+              {t.businessTitle}
+            </h2>
+            <dl className="mt-5 grid gap-5 sm:grid-cols-2">
+              {BUSINESS.legalName ? <Detail icon={Building2} label={t.businessName} value={BUSINESS.legalName} /> : null}
+              {BUSINESS.address ? <Detail icon={MapPin} label={t.address} value={BUSINESS.address} /> : null}
+              {BUSINESS.phone ? (
+                <Detail
+                  icon={Phone}
+                  label={t.phone}
+                  value={
+                    <a href={`tel:${BUSINESS.phone.replace(/[^d+]/g, "")}`} className="hover:text-primary">
+                      {BUSINESS.phone}
+                    </a>
+                  }
+                />
+              ) : null}
+              <Detail
+                icon={Mail}
+                label={t.email}
+                value={
+                  <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-primary [overflow-wrap:anywhere]">
+                    {SUPPORT_EMAIL}
+                  </a>
+                }
+              />
+            </dl>
+          </section>
+        )}
+
         <section className="mt-14" aria-labelledby="contact-quick">
           <div className="mb-6 flex items-center gap-2">
             <MessageCircleQuestion className="text-primary size-5" aria-hidden />
@@ -116,6 +148,20 @@ export default async function ContactPage() {
             </Link>
           ))}
         </nav>
+      </div>
+    </div>
+  );
+}
+
+function Detail({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex gap-3">
+      <span className="bg-accent text-accent-foreground flex size-9 shrink-0 items-center justify-center rounded-xl">
+        <Icon className="size-4" />
+      </span>
+      <div className="min-w-0">
+        <dt className="text-muted-foreground text-xs font-medium">{label}</dt>
+        <dd className="mt-0.5 text-sm font-medium">{value}</dd>
       </div>
     </div>
   );

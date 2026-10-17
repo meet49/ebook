@@ -160,6 +160,18 @@ export function CheckoutPanel({ slug, amountPaise }: { slug: string; amountPaise
         </form>
       )}
 
+      <p className="text-muted-foreground text-center text-xs leading-relaxed">
+        {t.agree.before}{" "}
+        <Link href="/legal/terms" target="_blank" className="text-foreground underline underline-offset-2">
+          {t.agree.terms}
+        </Link>{" "}
+        {t.agree.and}{" "}
+        <Link href="/legal/refunds" target="_blank" className="text-foreground underline underline-offset-2">
+          {t.agree.refunds}
+        </Link>
+        {t.agree.after}
+      </p>
+
       <p className="text-muted-foreground flex items-start justify-center gap-1.5 border-t pt-5 text-center text-xs">
         <ShieldCheck className="mt-px size-3.5 shrink-0" aria-hidden /> {t.secureNote}
       </p>
