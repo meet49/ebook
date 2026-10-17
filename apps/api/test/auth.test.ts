@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { devOutbox } from '../src/lib/email/transport';
 import { AuditLog } from '../src/models/AuditLog';
+import { AuthToken } from '../src/models/AuthToken';
 import { Session } from '../src/models/Session';
 import { User } from '../src/models/User';
 import { ORIGIN, agent, app, createUser, lastEmailToken } from './helpers';
@@ -103,7 +104,7 @@ describe('login and portals', () => {
 });
 
 describe('email verification', () => {
-  it('verifies with a single-use token', async () => {
+  it('verifies the address, and opening the link again still succeeds', async () => {
     const a = agent();
     await a.post('/api/v1/auth/register').send({ name: 'Veer', email: 'v@example.com', password: PASSWORD }).expect(201);
     const token = lastEmailToken('v@example.com');
@@ -112,9 +113,33 @@ describe('email verification', () => {
     const me = await a.get('/api/v1/auth/me');
     expect(me.body.user.emailVerified).toBe(true);
 
-    const reuse = await agent().post('/api/v1/auth/verify-email').send({ token });
-    expect(reuse.status).toBe(400);
-    expect(reuse.body.error.code).toBe('INVALID_TOKEN');
+    // e.g. opened once in the email app's browser, then again in the installed app.
+    await agent().post('/api/v1/auth/verify-email').send({ token }).expect(200);
+    expect(await AuditLog.countDocuments({ action: 'auth.email_verified' })).toBe(1);
+  });
+
+  it('accepts an older link after a resend', async () => {
+    const a = agent();
+    await a.post('/api/v1/auth/register').send({ name: 'Old', email: 'old@example.com', password: PASSWORD }).expect(201);
+    const first = lastEmailToken('old@example.com');
+    await a.post('/api/v1/auth/resend-verification').expect(200);
+    expect(lastEmailToken('old@example.com')).not.toBe(first);
+
+    await agent().post('/api/v1/auth/verify-email').send({ token: first }).expect(200);
+    expect((await a.get('/api/v1/auth/me')).body.user.emailVerified).toBe(true);
+  });
+
+  it('rejects unknown links and expired links for unverified addresses', async () => {
+    const bogus = await agent().post('/api/v1/auth/verify-email').send({ token: 'x'.repeat(43) });
+    expect(bogus.status).toBe(400);
+    expect(bogus.body.error.code).toBe('INVALID_TOKEN');
+
+    await agent().post('/api/v1/auth/register').send({ name: 'Late', email: 'late@example.com', password: PASSWORD }).expect(201);
+    const token = lastEmailToken('late@example.com');
+    await AuthToken.updateMany({ purpose: 'verify_email' }, { $set: { expiresAt: new Date(Date.now() - 1000) } });
+    const expired = await agent().post('/api/v1/auth/verify-email').send({ token });
+    expect(expired.status).toBe(400);
+    expect((await User.findOne({ email: 'late@example.com' }))!.emailVerifiedAt).toBeNull();
   });
 });
 

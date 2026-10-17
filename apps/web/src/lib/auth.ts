@@ -20,6 +20,9 @@ export function useMe() {
       }
     },
     staleTime: 60_000,
+    // Email links (verify, magic sign-in) usually open in the browser or an email app, not in the
+    // installed app or this tab. Re-check when the user comes back so the change shows at once.
+    refetchOnWindowFocus: "always",
     retry: (count, err) => !(err instanceof ApiError && err.status < 500) && count < 2,
   });
 }

@@ -15,6 +15,7 @@ import { HttpError, badRequest } from '../../lib/errors';
 import { requireAuth } from '../../middleware/auth';
 import { emailSendLimiter, loginLimiter, sensitiveLimiter } from '../../middleware/rateLimit';
 import { parse } from '../../middleware/validate';
+import { AuthToken } from '../../models/AuthToken';
 import { User, toPublicUser } from '../../models/User';
 import {
   authenticate,
@@ -25,7 +26,7 @@ import {
 } from './auth.service';
 import { rememberReferral } from '../affiliates/attribution';
 import { endSession, revokeAllSessions, startSession } from './session';
-import { consumeAuthToken, safeRedirectPath } from './tokens';
+import { consumeAuthToken, findAuthToken, safeRedirectPath } from './tokens';
 
 export const authRouter = Router();
 
@@ -101,12 +102,25 @@ authRouter.post('/resend-verification', requireAuth, emailSendLimiter, async (re
   res.json({ ok: true });
 });
 
+/**
+ * Idempotent on purpose: the same link is often opened twice (an email app's built-in browser,
+ * then the browser or installed app), and an older link superseded by "resend" still proves the
+ * address received it. Emails can't be changed, so a link only ever verifies its own address.
+ * Unknown links fail, and so do expired links for addresses that are not verified yet.
+ */
 authRouter.post('/verify-email', sensitiveLimiter, async (req, res) => {
   const { token } = parse(tokenSchema, req.body);
-  const record = await consumeAuthToken(token, 'verify_email');
+  const record = await findAuthToken(token, 'verify_email');
   if (!record) throw invalidLink();
-  await User.updateOne({ _id: record.userId, emailVerifiedAt: null }, { $set: { emailVerifiedAt: new Date() } });
-  await audit({ action: 'auth.email_verified', actorId: record.userId, req });
+  const user = await User.findById(record.userId).select('emailVerifiedAt');
+  if (!user) throw invalidLink();
+
+  if (!user.emailVerifiedAt) {
+    if (record.expiresAt <= new Date()) throw invalidLink();
+    await User.updateOne({ _id: user._id, emailVerifiedAt: null }, { $set: { emailVerifiedAt: new Date() } });
+    await audit({ action: 'auth.email_verified', actorId: user._id, req });
+  }
+  if (!record.usedAt) await AuthToken.updateOne({ _id: record._id, usedAt: null }, { $set: { usedAt: new Date() } });
   res.json({ ok: true });
 });
 

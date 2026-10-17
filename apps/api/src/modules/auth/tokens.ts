@@ -46,6 +46,11 @@ export async function issueAuthToken(
   return token;
 }
 
+/** Looks a token up whether or not it was used or superseded. Callers decide what that means. */
+export async function findAuthToken(token: string, purpose: AuthTokenPurpose) {
+  return AuthToken.findOne({ tokenHash: hashToken(token), purpose });
+}
+
 /** Atomically marks a valid token as used. Returns null if it is unknown, expired or already used. */
 export async function consumeAuthToken(token: string, purpose: AuthTokenPurpose) {
   const now = new Date();
