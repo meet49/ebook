@@ -194,14 +194,10 @@
   user-select: none;
   pointer-events: none;
 }
-/* Dark mode inverts page images while keeping images' hues roughly intact. */
-.reader-dark .reader-page,
-.reader-dark .reader-page img {
-  background: #111;
-}
-.reader-dark .reader-page img {
-  filter: invert(0.92) hue-rotate(180deg) brightness(0.95);
-}
+/*
+ * Pages always show the PDF exactly as published (white paper, original colours), in every
+ * theme. The reader's dark mode only darkens the surroundings: toolbar, background and panels.
+ */
 @media print {
   .reader-root {
     display: none !important;
