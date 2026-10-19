@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Copy, CreditCard, ExternalLink, Info, KeyRound, PlugZap, Trash2, Webhook } from "lucide-react";
+import { AlertTriangle, BarChart3, CheckCircle2, Copy, CreditCard, ExternalLink, Info, KeyRound, PlugZap, Trash2, Webhook } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { IconChip, StatusPill } from "@/components/dashboard/list-ui";
@@ -23,6 +23,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { ApiError, api, errorMessage } from "@/lib/api";
 
 interface PaymentSettings {
@@ -50,7 +51,10 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader eyebrow="System" title="Settings" description="Store configuration. Changes take effect immediately — no restart needed." />
-      <div className="max-w-3xl space-y-6">{isPending || !data ? <Skeleton className="h-96 rounded-2xl" /> : <PaymentsCard settings={data} />}</div>
+      <div className="max-w-3xl space-y-6">
+        {isPending || !data ? <Skeleton className="h-96 rounded-2xl" /> : <PaymentsCard settings={data} />}
+        <AnalyticsSection />
+      </div>
     </>
   );
 }
@@ -280,5 +284,113 @@ function PaymentsCard({ settings: s }: { settings: PaymentSettings }) {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+// ─── Google Analytics ────────────────────────────────────────────────
+
+interface AnalyticsSettings {
+  measurementId: string | null;
+  enabled: boolean;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+const analyticsKey = ["admin", "settings", "analytics"] as const;
+
+function AnalyticsSection() {
+  const { data, isPending } = useQuery({
+    queryKey: analyticsKey,
+    queryFn: () => api<{ analytics: AnalyticsSettings }>("/admin/settings/analytics").then((r) => r.analytics),
+  });
+  if (isPending || !data) return <Skeleton className="h-72 rounded-2xl" />;
+  return <AnalyticsCard settings={data} />;
+}
+
+function AnalyticsCard({ settings: s }: { settings: AnalyticsSettings }) {
+  const qc = useQueryClient();
+  const [measurementId, setMeasurementId] = useState(s.measurementId ?? "");
+  const [enabled, setEnabled] = useState(s.enabled);
+  const [error, setError] = useState<string | null>(null);
+  const dirty = measurementId.trim().toUpperCase() !== (s.measurementId ?? "") || enabled !== s.enabled;
+
+  const save = useMutation({
+    mutationFn: () =>
+      api<{ analytics: AnalyticsSettings }>("/admin/settings/analytics", { method: "PUT", body: { measurementId, enabled } }).then((r) => r.analytics),
+    onSuccess: (analytics) => {
+      qc.setQueryData(analyticsKey, analytics);
+      setMeasurementId(analytics.measurementId ?? "");
+      setError(null);
+      toast.success(analytics.enabled ? "Google Analytics is on — the site starts sending data within a minute" : "Google Analytics settings saved");
+    },
+    onError: (err) => {
+      const field = err instanceof ApiError ? err.details?.measurementId?.[0] : undefined;
+      if (field) setError(field);
+      else toast.error(errorMessage(err));
+    },
+  });
+
+  return (
+    <Card className="rounded-2xl">
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle className="flex items-center gap-3">
+            <IconChip icon={BarChart3} tone="violet" /> Google Analytics
+          </CardTitle>
+          {s.enabled && s.measurementId ? <StatusPill tone="success">Tracking on</StatusPill> : <StatusPill tone="muted">Off</StatusPill>}
+        </div>
+        <CardDescription className="pt-1">
+          See where visitors come from (Google, Instagram, WhatsApp…), which pages they open and which devices they use — in your
+          Google Analytics account.
+          {s.updatedAt ? ` Updated ${new Date(s.updatedAt).toLocaleString("en-IN")}${s.updatedBy ? ` by ${s.updatedBy}` : ""}.` : ""}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-6">
+        <div className="bg-primary/5 border-primary/20 flex gap-3 rounded-xl border p-3.5 text-sm">
+          <Info className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
+          <div className="space-y-1">
+            <p>
+              In{" "}
+              <a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer" className="text-primary inline-flex items-center gap-1 font-medium hover:underline">
+                Google Analytics <ExternalLink className="size-3" aria-hidden />
+              </a>{" "}
+              go to <strong>Admin → Data streams → your website stream</strong> and copy the <strong>Measurement ID</strong> (starts with{" "}
+              <span className="font-mono">G-</span>).
+            </p>
+            <p className="text-muted-foreground">
+              Analytics is never loaded on admin pages or on email sign-in, verification and password-reset links.
+            </p>
+          </div>
+        </div>
+
+        <FieldGroup>
+          <Field data-invalid={Boolean(error)}>
+            <FieldLabel htmlFor="gaMeasurementId">Measurement ID</FieldLabel>
+            <Input
+              id="gaMeasurementId"
+              value={measurementId}
+              onChange={(e) => setMeasurementId(e.target.value)}
+              placeholder="G-XXXXXXXXXX"
+              autoComplete="off"
+              spellCheck={false}
+              className="font-mono uppercase"
+              aria-invalid={Boolean(error)}
+            />
+            {error ? <FieldError>{error}</FieldError> : <FieldDescription>Only the ID is needed — no passwords or keys.</FieldDescription>}
+          </Field>
+          <Field orientation="horizontal">
+            <Switch id="gaEnabled" checked={enabled} onCheckedChange={setEnabled} />
+            <FieldLabel htmlFor="gaEnabled">Turn on tracking on the website</FieldLabel>
+          </Field>
+        </FieldGroup>
+      </CardContent>
+
+      <CardFooter className="justify-end">
+        <Button onClick={() => save.mutate()} disabled={save.isPending || !dirty}>
+          {save.isPending ? <Spinner /> : <CheckCircle2 />} Save
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }

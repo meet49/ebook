@@ -20,4 +20,5 @@ export const Setting = model('Setting', settingSchema);
 
 export const SETTING_KEYS = {
   razorpay: 'payments.razorpay',
+  analytics: 'analytics.google',
 } as const;

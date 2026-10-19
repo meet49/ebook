@@ -21,6 +21,9 @@ themes.
   `node scripts/make-icons.mjs` in `apps/web`) and `public/sw.js`. The service worker is
   registered in production only. It caches only immutable build assets and an offline page,
   never `/api` responses or HTML pages.
+- **Google Analytics.** Admin → Settings → Google Analytics takes the GA4 Measurement ID and an
+  on/off switch (no env vars). The site reads it from `GET /api/v1/site-config` (cached about a
+  minute). GA is never loaded on admin pages or on email sign-in, verify and reset links.
 
 Docs: [Architecture & plan](docs/ARCHITECTURE.md) · [API reference](docs/API.md) ·
 [Deploy on Render](docs/DEPLOY-RENDER.md) · [Deployment checklist](docs/DEPLOYMENT.md) · [Progress & known limitations](docs/PROGRESS.md)

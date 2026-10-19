@@ -2,6 +2,7 @@ import { createHmac } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { getRazorpayCredentials, setCredentialChecker } from '../src/lib/payments/config';
+import { invalidateSiteConfig } from '../src/lib/site-config';
 import { AuditLog } from '../src/models/AuditLog';
 import { Setting } from '../src/models/Setting';
 import { agent, app, createUser } from './helpers';
@@ -21,7 +22,10 @@ beforeEach(async () => {
   );
 });
 
-afterEach(() => setCredentialChecker(null));
+afterEach(() => {
+  setCredentialChecker(null);
+  invalidateSiteConfig();
+});
 
 const save = (body: Record<string, unknown>) => admin.put('/api/v1/admin/settings/payments').send({ currentPassword: PASSWORD, ...body });
 
@@ -80,5 +84,36 @@ describe('payment settings', () => {
     setCredentialChecker(async () => ({ ok: true }));
     const res = await admin.post('/api/v1/admin/settings/payments/test').expect(200);
     expect(res.body).toMatchObject({ ok: true, message: 'Connected to Razorpay (test mode)' });
+  });
+});
+
+describe('analytics settings', () => {
+  const saveGa = (body: Record<string, unknown>) => admin.put('/api/v1/admin/settings/analytics').send(body);
+
+  it('is admin-only to change', async () => {
+    await request(app).get('/api/v1/admin/settings/analytics').expect(401);
+    await request(app).put('/api/v1/admin/settings/analytics').set('Origin', 'http://localhost:3000').send({ measurementId: 'G-ABC1234', enabled: true }).expect(401);
+    const res = await admin.get('/api/v1/admin/settings/analytics').expect(200);
+    expect(res.body.analytics).toMatchObject({ measurementId: null, enabled: false });
+  });
+
+  it('validates the Measurement ID', async () => {
+    const bad = await saveGa({ measurementId: 'UA-12345-1', enabled: true });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.details.measurementId).toBeDefined();
+    const missing = await saveGa({ measurementId: '', enabled: true });
+    expect(missing.status).toBe(400);
+  });
+
+  it('publishes the ID to the website only while enabled', async () => {
+    expect((await request(app).get('/api/v1/site-config').expect(200)).body.analytics.gaMeasurementId).toBeNull();
+
+    const saved = await saveGa({ measurementId: ' g-abc1234xyz ', enabled: true }).expect(200);
+    expect(saved.body.analytics).toMatchObject({ measurementId: 'G-ABC1234XYZ', enabled: true });
+    expect((await request(app).get('/api/v1/site-config').expect(200)).body.analytics.gaMeasurementId).toBe('G-ABC1234XYZ');
+    expect(await AuditLog.countDocuments({ action: 'settings.analytics_updated' })).toBe(1);
+
+    await saveGa({ measurementId: 'G-ABC1234XYZ', enabled: false }).expect(200);
+    expect((await request(app).get('/api/v1/site-config').expect(200)).body.analytics.gaMeasurementId).toBeNull();
   });
 });

@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif, Noto_Sans_Devanagari } from "next/font/google";
+import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import { Providers } from "@/components/providers";
 import { getLocale } from "@/i18n/server";
+import { getSiteConfig } from "@/lib/server-api";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -29,7 +31,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const locale = await getLocale();
+  const [locale, siteConfig] = await Promise.all([getLocale(), getSiteConfig()]);
   return (
     <html
       lang={locale}
@@ -38,6 +40,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         <Providers locale={locale}>{children}</Providers>
+        <GoogleAnalytics measurementId={siteConfig?.analytics.gaMeasurementId ?? null} />
       </body>
     </html>
   );

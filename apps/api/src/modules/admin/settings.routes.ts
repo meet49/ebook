@@ -11,6 +11,7 @@ import {
   verifyRazorpayCredentials,
   type StoredRazorpaySettings,
 } from '../../lib/payments/config';
+import { GA_MEASUREMENT_ID, getAnalyticsSettings, invalidateSiteConfig, type StoredAnalyticsSettings } from '../../lib/site-config';
 import { sensitiveLimiter } from '../../middleware/rateLimit';
 import { parse } from '../../middleware/validate';
 import { SETTING_KEYS, Setting } from '../../models/Setting';
@@ -133,4 +134,49 @@ adminSettingsRouter.delete('/payments', sensitiveLimiter, async (req, res) => {
   invalidatePaymentConfig();
   await audit({ action: 'settings.payments_removed', entityType: 'Setting', req });
   res.json({ payments: await paymentSettingsDto() });
+});
+
+// ─── Google Analytics ────────────────────────────────────────────────
+// The Measurement ID is public (it ships in every page), so no password step-up is needed.
+
+async function analyticsSettingsDto() {
+  const [settings, stored] = await Promise.all([getAnalyticsSettings(), Setting.findOne({ key: SETTING_KEYS.analytics })]);
+  const updatedBy = stored?.updatedBy ? await User.findById(stored.updatedBy).select('email') : null;
+  return {
+    ...settings,
+    updatedAt: stored?.updatedAt?.toISOString() ?? null,
+    updatedBy: updatedBy?.email ?? null,
+  };
+}
+
+adminSettingsRouter.get('/analytics', async (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ analytics: await analyticsSettingsDto() });
+});
+
+const analyticsBody = z
+  .object({
+    measurementId: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .refine((v) => v === '' || GA_MEASUREMENT_ID.test(v), 'Measurement ID looks like G-XXXXXXXXXX'),
+    enabled: z.boolean(),
+  })
+  .refine((v) => !v.enabled || v.measurementId !== '', {
+    path: ['measurementId'],
+    message: 'Enter the Measurement ID to turn tracking on',
+  });
+
+adminSettingsRouter.put('/analytics', async (req, res) => {
+  const input = parse(analyticsBody, req.body);
+  const value: StoredAnalyticsSettings = { measurementId: input.measurementId || null, enabled: input.enabled };
+  await Setting.updateOne(
+    { key: SETTING_KEYS.analytics },
+    { $set: { value, updatedBy: req.auth!.user._id } },
+    { upsert: true },
+  );
+  invalidateSiteConfig();
+  await audit({ action: 'settings.analytics_updated', entityType: 'Setting', meta: { ...value }, req });
+  res.json({ analytics: await analyticsSettingsDto() });
 });

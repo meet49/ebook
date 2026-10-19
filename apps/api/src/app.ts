@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import { pinoHttp } from 'pino-http';
 import { env, isTest } from './config/env';
 import { logger } from './lib/logger';
+import { getPublicSiteConfig } from './lib/site-config';
 import { loadSession, requireAuth, requireRole } from './middleware/auth';
 import { errorHandler, notFoundHandler } from './middleware/error';
 import { verifyOrigin } from './middleware/origin';
@@ -54,6 +55,11 @@ export function createApp() {
   v1.use('/me', requireAuth, meRouter);
   v1.use('/reader', requireAuth, readerRouter);
   v1.get('/r/:code', handleReferralClick);
+  // Public, non-secret settings the website needs on every page (e.g. the Google Analytics ID).
+  v1.get('/site-config', async (_req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.json(await getPublicSiteConfig());
+  });
   v1.use('/affiliate', affiliateRouter);
   v1.use('/admin/users', requireRole('admin'), adminUsersRouter);
   v1.use('/admin/products', requireRole('admin'), adminProductsRouter);

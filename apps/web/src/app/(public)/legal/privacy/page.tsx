@@ -44,6 +44,7 @@ export default function PrivacyPage() {
       <ul>
         <li>Razorpay, to process payments and refunds.</li>
         <li>Our hosting, database, file storage and email providers, only as needed to run the Service.</li>
+        <li>Google Analytics, for anonymous usage statistics about how the website is used.</li>
         <li>Authorities, when required by law.</li>
       </ul>
 
@@ -52,8 +53,19 @@ export default function PrivacyPage() {
         <li>A strictly necessary session cookie keeps you signed in.</li>
         <li>A referral cookie (up to 30 days) credits affiliates for sales they referred.</li>
         <li>Preference cookies and local storage remember your language, theme and reader settings.</li>
+        <li>
+          Analytics cookies: we may use Google Analytics to understand how visitors find and use the website (for
+          example which pages are visited and where visitors came from). Google processes this data under its own privacy
+          policy. Analytics is not loaded on admin pages or on sign-in, verification and password-reset links.
+        </li>
       </ul>
-      <p>We do not use advertising or third-party tracking cookies.</p>
+      <p>
+        We do not use advertising cookies. You can block analytics cookies in your browser settings or with the{" "}
+        <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener noreferrer">
+          Google Analytics opt-out add-on
+        </a>
+        .
+      </p>
 
       <h2>How long we keep it</h2>
       <p>

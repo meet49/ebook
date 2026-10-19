@@ -39,3 +39,25 @@ export async function getProduct(slug: string): Promise<ProductDetail | null> {
   if (!/^[a-z0-9-]{1,80}$/.test(slug)) return null;
   return (await serverGet<{ product: ProductDetail }>(`/products/${slug}`))?.product ?? null;
 }
+
+export interface SiteConfig {
+  analytics: { gaMeasurementId: string | null };
+}
+
+/**
+ * Public settings managed from the admin panel (e.g. the Google Analytics ID). Cached for a
+ * minute, and never allowed to slow down or break a page: on any error the site renders
+ * without them.
+ */
+export async function getSiteConfig(): Promise<SiteConfig | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/v1/site-config`, {
+      next: { revalidate: 60 },
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(1500),
+    });
+    return res.ok ? ((await res.json()) as SiteConfig) : null;
+  } catch {
+    return null;
+  }
+}
