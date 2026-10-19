@@ -11,13 +11,14 @@ import {
   ChevronRight,
   List,
   Maximize,
+  Menu,
   Minimize,
   Moon,
   ShieldCheck,
   Sun,
   Trash2,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -60,6 +61,22 @@ function writePref(key: string, value: boolean) {
   }
 }
 
+/** Live result of a media query (false on the server). */
+function useMedia(query: string): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia(query);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
+}
+
+/** How long the overlaid controls stay visible in immersive mode. */
+const CONTROLS_HIDE_MS = 3500;
+
 export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManifest; startPage: number; doc: PDFDocumentProxy }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<HTMLDivElement>(null);
@@ -67,7 +84,8 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
   const imagesRef = useRef<HTMLImageElement[]>([]);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warnedRef = useRef(false);
-  // Captured once: later manifest updates (e.g. bookmarks) must not rebuild the book.
+  // The page to open at when the book is (re)built. Kept up to date as the reader turns pages,
+  // so rebuilding after a rotation reopens where they were; manifest updates never rebuild it.
   const startPageRef = useRef(startPage);
   const t = useMessages().reader;
   // Strings used inside the page-building effect and render queue, read without making them dependencies.
@@ -78,6 +96,18 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
   const [dark, setDark] = useState(() => readPref("reader:dark", siteIsDark));
   const [fullscreen, setFullscreen] = useState(false);
   const [panel, setPanel] = useState<"contents" | "bookmarks" | null>(null);
+  // Phones held sideways have little height: the bars float over the book and hide themselves,
+  // so a two-page spread gets the whole screen.
+  const immersive = useMedia("(max-height: 520px)");
+  const landscape = useMedia("(orientation: landscape)");
+  const [controlsShown, setControlsShown] = useState(true);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showControls = useCallback(() => {
+    setControlsShown(true);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setControlsShown(false), CONTROLS_HIDE_MS);
+  }, []);
+  const barsHidden = immersive && !controlsShown && panel === null;
   const { add, remove } = useBookmarkMutations(manifest.slug, manifest.productId);
   const total = manifest.pageCount;
 
@@ -187,7 +217,10 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
 
     flip.on("flip", (e) => {
       const current = e.data + 1;
+      startPageRef.current = current;
       setPage(current);
+      // Turning a page hides the floating bars (only visible in immersive mode).
+      setControlsShown(false);
       setSpread(flip.getOrientation() === "landscape");
       preload(current);
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -209,7 +242,18 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
         /* already torn down */
       }
     };
-  }, [manifest.productId, manifest.pageWidth, manifest.pageHeight, total, preload]);
+    // immersive/landscape: a rotated screen needs the book rebuilt at its new size.
+  }, [manifest.productId, manifest.pageWidth, manifest.pageHeight, total, preload, immersive, landscape]);
+
+  // Entering immersive mode shows the bars briefly, then they hide themselves.
+  useEffect(() => {
+    if (!immersive) return;
+    const show = setTimeout(showControls, 0);
+    return () => {
+      clearTimeout(show);
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+    };
+  }, [immersive, showControls]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -228,6 +272,7 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
 
   const goTo = (n: number) => {
     const target = Math.min(total, Math.max(1, n));
+    startPageRef.current = target;
     flipRef.current?.turnToPage(target - 1);
     setPage(target);
     preload(target);
@@ -260,13 +305,18 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
   return (
     <div
       ref={wrapperRef}
-      className={cn("reader-root flex h-dvh flex-col select-none", dark ? "reader-dark bg-neutral-950 text-neutral-100" : "bg-neutral-100 text-neutral-900")}
+      className={cn("reader-root relative flex h-dvh flex-col select-none", dark ? "reader-dark bg-neutral-950 text-neutral-100" : "bg-neutral-100 text-neutral-900")}
       onContextMenu={(e) => e.preventDefault()}
     >
       <header
+        onPointerDown={immersive ? showControls : undefined}
+        inert={barsHidden || undefined}
         className={cn(
-          "relative z-20 flex h-14 shrink-0 items-center gap-1 border-b px-2 backdrop-blur-md sm:gap-2 sm:px-4",
+          "z-20 flex h-14 shrink-0 items-center gap-1 border-b px-2 backdrop-blur-md transition-[translate,opacity] duration-300 sm:gap-2 sm:px-4",
           dark ? "border-white/10 bg-neutral-900/80" : "border-black/5 bg-white/80",
+          // Floats over the book instead of taking its height on short screens.
+          immersive ? "absolute inset-x-0 top-0 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]" : "relative",
+          barsHidden && "pointer-events-none -translate-y-full opacity-0",
         )}
       >
         <Button asChild variant="ghost" size="icon-lg" aria-label={t.back} className={READER_BUTTON}>
@@ -299,13 +349,32 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
         </ToolbarButton>
       </header>
 
-      <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden px-2 py-3 sm:px-12 sm:py-6">
+      <main
+        className={cn(
+          "relative flex min-h-0 flex-1 items-center justify-center overflow-hidden",
+          immersive ? "px-[max(0.25rem,env(safe-area-inset-left))] py-1" : "px-2 py-3 sm:px-12 sm:py-6",
+        )}
+      >
+        {barsHidden && (
+          <button
+            type="button"
+            onClick={showControls}
+            aria-label={t.showControls}
+            className={cn(
+              "absolute top-2 right-[max(0.5rem,env(safe-area-inset-right))] z-30 rounded-full p-2 opacity-70 shadow-md ring-1 backdrop-blur-md transition hover:opacity-100",
+              dark ? "bg-neutral-900/80 ring-white/10" : "bg-white/80 ring-black/5",
+            )}
+          >
+            <Menu className="size-5" />
+          </button>
+        )}
         <button
           type="button"
           onClick={() => flipRef.current?.flipPrev()}
           disabled={page <= 1}
           className={cn(
             "absolute top-1/2 left-2 z-10 hidden -translate-y-1/2 rounded-full p-2 opacity-60 shadow-sm ring-1 transition hover:opacity-100 disabled:pointer-events-none disabled:opacity-20 sm:block",
+            immersive && "sm:hidden",
             dark ? "bg-white/5 ring-white/10" : "bg-white/70 ring-black/5",
           )}
           aria-label={t.previous}
@@ -321,6 +390,7 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
           disabled={page >= total}
           className={cn(
             "absolute top-1/2 right-2 z-10 hidden -translate-y-1/2 rounded-full p-2 opacity-60 shadow-sm ring-1 transition hover:opacity-100 disabled:pointer-events-none disabled:opacity-20 sm:block",
+            immersive && "sm:hidden",
             dark ? "bg-white/5 ring-white/10" : "bg-white/70 ring-black/5",
           )}
           aria-label={t.next}
@@ -330,9 +400,13 @@ export function BookReader({ manifest, startPage, doc }: { manifest: ReaderManif
       </main>
 
       <footer
+        onPointerDown={immersive ? showControls : undefined}
+        inert={barsHidden || undefined}
         className={cn(
-          "flex shrink-0 items-center gap-2 border-t px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:gap-4 sm:px-6",
+          "z-20 flex shrink-0 items-center gap-2 border-t px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-md transition-[translate,opacity] duration-300 sm:gap-4 sm:px-6",
           dark ? "border-white/10 bg-neutral-900/80" : "border-black/5 bg-white/80",
+          immersive && "absolute inset-x-0 bottom-0 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]",
+          barsHidden && "pointer-events-none translate-y-full opacity-0",
         )}
       >
         <Button
