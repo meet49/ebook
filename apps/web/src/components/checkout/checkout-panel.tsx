@@ -29,13 +29,27 @@ interface CreatedOrder {
   currency: string;
   keyId: string;
   product: { title: string; slug: string };
+  lines: { title: string }[];
   prefill: { name: string; email: string };
 }
 
 const guestSchema = z.object({ name: nameSchema, email: emailSchema });
 type GuestValues = z.infer<typeof guestSchema>;
 
-export function CheckoutPanel({ slug, amountPaise }: { slug: string; amountPaise: number }) {
+export function CheckoutPanel({
+  slug,
+  amountPaise,
+  addOnSlugs = [],
+  onAddOnOwned,
+}: {
+  slug: string;
+  /** The total shown to the buyer (from the server quote). */
+  amountPaise: number;
+  /** Same-category books added at their combo price. */
+  addOnSlugs?: string[];
+  /** Called when an added book turns out to be owned already, so it can be removed. */
+  onAddOnOwned?: (slug: string) => void;
+}) {
   const t = useMessages().checkout;
   const router = useRouter();
   const { data: user, isPending } = useMe();
@@ -60,19 +74,30 @@ export function CheckoutPanel({ slug, amountPaise }: { slug: string; amountPaise
     let order: CreatedOrder;
     try {
       const [created] = await Promise.all([
-        api<CreatedOrder>("/checkout/orders", { method: "POST", body: { productSlug: slug, ...guest } }),
+        api<CreatedOrder>("/checkout/orders", { method: "POST", body: { productSlug: slug, addOnSlugs, ...guest } }),
         loadRazorpay(),
       ]);
       order = created;
     } catch (err) {
       setStage("idle");
       if (err instanceof ApiError && err.code === "ALREADY_OWNED") {
+        const addOn = err.details?.addOnSlugs?.[0];
+        if (addOn) {
+          // One of the added books is already in the buyer's library: drop it and let them retry.
+          toast.error(err.message);
+          onAddOnOwned?.(addOn);
+          return;
+        }
         setOwned(err.message);
         return;
       }
       handleFormError(err, form.setError);
       return;
     }
+
+    // The server re-prices for the actual buyer: a guest who used a different email than their
+    // recent order doesn't get the post-purchase combo price.
+    if (order.amountPaise > amountPaise) toast.info(t.combo.priceChanged);
 
     setStage("paying");
     openRazorpay(
@@ -82,7 +107,7 @@ export function CheckoutPanel({ slug, amountPaise }: { slug: string; amountPaise
         amount: order.amountPaise,
         currency: order.currency,
         name: SITE_NAME,
-        description: order.product.title,
+        description: order.lines.length > 1 ? t.combo.books(order.lines.length) : order.product.title,
         prefill: order.prefill,
         handler: (res) => void verify(order, res),
         modal: { ondismiss: () => setStage("idle"), confirm_close: true },

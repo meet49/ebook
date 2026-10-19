@@ -59,7 +59,7 @@ sign-in link 30 min (72 h for the link in the purchase email).
 |---|---|---|
 | GET | `/products?q&category&sort&featured&page&pageSize` | Published only. `sort`: `featured` / `newest` / `price_asc` / `price_desc`. Returns `ProductSummary[]` |
 | GET | `/products/categories` | `{categories: string[]}` |
-| GET | `/products/:slug` | `ProductDetail`: description, benefits, TOC, `sample` (`{ url, pages }` or `null`) |
+| GET | `/products/:slug` | `ProductDetail`: description, benefits, TOC, `sample` (`{ url, pages }` or `null`), `addOns` (same-category books with a combo price) |
 | GET | `/products/:slug/cover` | WebP, publicly cacheable |
 | GET | `/products/:slug/sample` | PDF of only the pages the admin chose as previews, stamped "SAMPLE" |
 
@@ -70,9 +70,12 @@ Responses never include storage keys or commission settings.
 | Method | Path | Auth | Notes |
 |---|---|---|---|
 | GET | `/checkout/config` | — | `{mode: "test" \| "live" \| "unconfigured"}` |
-| POST | `/checkout/orders` | optional | `{productSlug, name?, email?}`. Price and attribution are server-side. Guests: existing email → order attached, **no session**; new email → passwordless customer. `409 ALREADY_OWNED` |
+| POST | `/checkout/orders` | optional | `{productSlug, addOnSlugs?, name?, email?}`. Prices, combo eligibility and attribution are server-side. Add-ons (max 3) must share a category with the main book and have a combo price. The main book costs its combo price within 24 h of the buyer's last same-category purchase. Response includes `lines`. Guests: existing email → order attached, **no session**; new email → passwordless customer. `409 ALREADY_OWNED` (for an add-on, `details.addOnSlugs`) |
+| POST | `/checkout/quote` | optional | `{productSlug, addOnSlugs?, fromOrder?}` → `CheckoutQuote` (lines, total, savings, available add-ons, offer expiry). Display only; the order is re-priced on creation |
 | POST | `/checkout/verify` | — | `{razorpay_order_id, razorpay_payment_id, razorpay_signature}` → HMAC check, server-side fetch of the payment (status `captured`, amount, currency, order id) → idempotent fulfilment |
-| GET | `/checkout/orders/:orderNumber` | — | Status for the confirmation page: masked email, `isOwner` |
+| GET | `/checkout/orders/:orderNumber` | — | Status for the confirmation page: `lines`, masked email, `isOwner` |
+| GET | `/checkout/orders/:orderNumber/offers` | — | Combo offers for 24 h after the order was paid (empty otherwise) |
+| GET | `/site-config` | — | Public settings for the website: `{ analytics: { gaMeasurementId } }` (set in Admin → Settings) |
 | POST | `/webhooks/razorpay` | signature | Raw body; `X-Razorpay-Signature` HMAC. Handles `payment.captured`, `order.paid`, `payment.failed`, `refund.created`, `refund.processed`, `refund.failed`. Deduplicated by `X-Razorpay-Event-Id` |
 
 **Fulfilment** (idempotent; the verify call and webhook may race):
@@ -90,7 +93,8 @@ A refunded order never regains access from a late event.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/me/library` | `{items, explore}`: owned books with progress, plus unowned published books |
-| GET | `/me/orders` | Order history (abandoned checkouts excluded) |
+| GET | `/me/orders` | Order history (abandoned checkouts excluded), each with `lines` |
+| GET | `/me/offers` | Same-category books at their combo price for 24 h after a purchase |
 | PUT | `/me/progress/:productId` | `{page}` → `{page, percent}`; requires entitlement |
 | GET / POST | `/me/bookmarks` | POST `{productId, page, label?}` (upsert per page) |
 | DELETE | `/me/bookmarks/:id` | Own bookmarks only |
@@ -126,7 +130,7 @@ A refunded order never regains access from a late event.
 | Area | Endpoints |
 |---|---|
 | Users | `GET /users?q&role`, `PATCH /users/:id/status` `{status}` (suspending revokes sessions) |
-| Products | `GET /products?q&status`, `POST /products`, `GET/PUT /products/:id`, `POST /products/:id/{publish,unpublish,archive,restore,reprocess}`, `POST /products/:id/cover` (image), `POST /products/:id/pdf` (PDF → `202`, analysed in the background), `GET /products/:id/cover`, `GET /products/:id/pdf` (original, admin only) |
+| Products | `GET /products?q&status`, `POST /products`, `GET/PUT /products/:id`, `POST /products/:id/{publish,unpublish,archive,restore,reprocess}`, `POST /products/:id/cover` (image), `POST /products/:id/pdf` (PDF → `202`, analysed in the background), `GET /products/:id/cover`, `GET /products/:id/pdf` (original, admin only), `DELETE /products/:id` (only books nobody bought; else `409 HAS_SALES`) |
 | Orders | `GET /orders?q&status`, `GET /orders/:id` (with webhook events and commission), `POST /orders/:id/refund` `{amountPaise?, reason}` (real Razorpay refund), `POST /orders/:id/reconcile` (looks up captured payments at Razorpay) |
 | Affiliates | `GET /affiliates?status`, `POST /affiliates/:id/{approve,reject,suspend,reinstate}` `{note?}` |
 | Commissions | `GET /commissions?status&affiliateId` (with totals and history), `POST /commissions/approve` `{ids}`, `POST /commissions/:id/reverse` `{note}` |

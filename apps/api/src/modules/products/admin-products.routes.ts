@@ -10,6 +10,10 @@ import { storage, storageKeys } from '../../lib/storage';
 import { imageUpload, isPdfFile, pdfUpload, removeTemp, sha256File } from '../../middleware/upload';
 import { parse } from '../../middleware/validate';
 import { Product, type ProductDoc } from '../../models/Product';
+import { AffiliateProduct } from '../../models/AffiliateProduct';
+import { Commission } from '../../models/Commission';
+import { Entitlement } from '../../models/Entitlement';
+import { Order } from '../../models/Order';
 import { ProductAsset } from '../../models/ProductAsset';
 import { enqueueProcessing, removeOriginalAndDerived } from './processing';
 import { applyInput, publishBlockers, resolveSlug, toAdmin } from './products.service';
@@ -110,6 +114,36 @@ for (const [action, rule] of Object.entries(TRANSITIONS)) {
     res.json({ product: await toAdmin(product) });
   });
 }
+
+/**
+ * Permanently deletes a book and its files. Only books nobody has paid for can be deleted:
+ * buyers keep reading what they bought, and order history must stay intact, so a sold book
+ * is archived instead.
+ */
+adminProductsRouter.delete('/:id', async (req, res) => {
+  const product = await loadProduct(req);
+  const ref = { $or: [{ productId: product._id }, { 'items.productId': product._id }] };
+  const [sold, owned, earned] = await Promise.all([
+    Order.exists({ ...ref, status: { $in: ['paid', 'partially_refunded', 'refunded'] } }),
+    Entitlement.exists({ productId: product._id }),
+    Commission.exists({ productId: product._id }),
+  ]);
+  if (sold || owned || earned) {
+    throw new HttpError(409, 'HAS_SALES', 'This eBook has been bought, so it cannot be deleted. Archive it instead — buyers keep access.');
+  }
+  if (product.processing?.status === 'queued' || product.processing?.status === 'processing') {
+    throw new HttpError(409, 'PROCESSING', 'The PDF is still being processed. Try again in a moment.');
+  }
+
+  if (product.pdfAssetId) await removeOriginalAndDerived(product._id.toString(), product.pdfAssetId);
+  const assets = await ProductAsset.find({ productId: product._id });
+  await Promise.all(assets.map((a) => storage().delete(a.storageKey)));
+  await ProductAsset.deleteMany({ productId: product._id });
+  await AffiliateProduct.deleteMany({ productId: product._id });
+  await Product.deleteOne({ _id: product._id });
+  await audit({ action: 'product.deleted', entityType: 'Product', entityId: product._id, meta: { title: product.title, slug: product.slug }, req });
+  res.json({ ok: true });
+});
 
 adminProductsRouter.post('/:id/cover', imageUpload, async (req, res) => {
   const product = await loadProduct(req);

@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useIntlLocale, useMessages } from "@/i18n/client";
 import { api } from "@/lib/api";
-import type { CustomerOrder } from "@/lib/types";
+import { orderReadHref, orderTitle, type CustomerOrder } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const STATUS_TONE: Record<OrderStatus, string> = {
@@ -89,7 +89,7 @@ export default function OrdersPage() {
               <li key={o.orderNumber} className="bg-card space-y-3 rounded-2xl border p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="leading-snug font-medium">{o.product.title}</p>
+                    <p className="leading-snug font-medium">{orderTitle(o)}</p>
                     <p className="text-muted-foreground mt-0.5 font-mono text-xs">{o.orderNumber}</p>
                   </div>
                   <StatusBadge status={o.status} />
@@ -105,7 +105,7 @@ export default function OrdersPage() {
                 </div>
                 {canRead(o) && (
                   <Button asChild variant="outline" size="sm" className="w-full">
-                    <Link href={`/read/${o.product.slug}`}>
+                    <Link href={orderReadHref(o)}>
                       <BookOpen aria-hidden />
                       {t.read}
                     </Link>
@@ -132,12 +132,12 @@ export default function OrdersPage() {
                   <TableRow key={o.orderNumber}>
                     <TableCell className="py-3.5 pl-5 font-medium">
                       {canRead(o) ? (
-                        <Link href={`/read/${o.product.slug}`} className="hover:text-primary inline-flex items-center gap-2">
+                        <Link href={orderReadHref(o)} className="hover:text-primary inline-flex items-center gap-2">
                           <BookOpen className="text-primary size-4 shrink-0" aria-hidden />
-                          {o.product.title}
+                          {orderTitle(o)}
                         </Link>
                       ) : (
-                        o.product.title
+                        orderTitle(o)
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground font-mono text-xs">{o.orderNumber}</TableCell>

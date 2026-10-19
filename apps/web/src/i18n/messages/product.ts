@@ -43,6 +43,14 @@ const en = {
     eyebrow: "Keep exploring",
     title: "More eBooks you may like",
   },
+  buyTogether: {
+    eyebrow: "Combo offer",
+    title: "Buy together and save",
+    body: "Add a book on the same topic at a special combo price.",
+    both: (price: string) => `Buy both for ${price}`,
+    save: (amount: string) => `Save ${amount}`,
+    comboPrice: "Combo price",
+  },
 };
 
 export type ProductMessages = typeof en;
@@ -90,6 +98,14 @@ const hi: ProductMessages = {
   more: {
     eyebrow: "और देखें",
     title: "आपको ये ई-बुक्स भी पसंद आ सकती हैं",
+  },
+  buyTogether: {
+    eyebrow: "कॉम्बो ऑफ़र",
+    title: "साथ में ख़रीदें, बचत करें",
+    body: "इसी विषय की एक और किताब ख़ास कॉम्बो कीमत पर जोड़ें।",
+    both: (price: string) => `दोनों ${price} में लें`,
+    save: (amount: string) => `${amount} बचाएँ`,
+    comboPrice: "कॉम्बो कीमत",
   },
 };
 

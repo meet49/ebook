@@ -5,9 +5,33 @@ const orderSchema = new Schema(
   {
     orderNumber: { type: String, required: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    /** The main book (the first line). Kept for orders made before combos and for simple lookups. */
     productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
     /** Snapshot at order time so later product edits do not rewrite history. */
     productSnapshot: { title: String, slug: String },
+    /**
+     * Every book in the order with what was charged for it. Orders made before combos have no
+     * lines; use orderLines() to read any order uniformly.
+     */
+    items: {
+      type: [
+        {
+          _id: false,
+          productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
+          title: String,
+          slug: String,
+          listPricePaise: { type: Number, required: true },
+          pricePaise: { type: Number, required: true },
+          combo: { type: Boolean, default: false },
+          /** This book's commission rule at order time; null when it pays no commission. */
+          commissionRule: {
+            type: new Schema({ type: { type: String, enum: ['percent', 'fixed'] }, value: Number }, { _id: false }),
+            default: null,
+          },
+        },
+      ],
+      default: [],
+    },
     customerSnapshot: { name: String, email: String },
 
     amountPaise: { type: Number, required: true },
@@ -63,6 +87,7 @@ orderSchema.index(
   { unique: true, partialFilterExpression: { 'razorpay.paymentId': { $type: 'string' } } },
 );
 orderSchema.index({ userId: 1, createdAt: -1 });
+orderSchema.index({ 'items.productId': 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ 'attribution.affiliateId': 1, createdAt: -1 });
 

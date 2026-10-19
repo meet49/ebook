@@ -65,3 +65,15 @@ export function useProductAction(id: string) {
 }
 
 export const adminPdfUrl = (id: string, version: string) => `/api/v1/admin/products/${id}/pdf?v=${encodeURIComponent(version)}`;
+
+/** Permanently deletes an unsold eBook (the API refuses books that were bought). */
+export function useDeleteProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<{ ok: true }>(`/admin/products/${id}`, { method: "DELETE" }),
+    onSuccess: (_res, id) => {
+      qc.removeQueries({ queryKey: productKey(id) });
+      void qc.invalidateQueries({ queryKey: adminProductsKey });
+    },
+  });
+}

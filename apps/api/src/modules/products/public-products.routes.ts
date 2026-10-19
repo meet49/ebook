@@ -6,6 +6,7 @@ import { parse } from '../../middleware/validate';
 import { Product, type ProductDoc } from '../../models/Product';
 import { ProductAsset } from '../../models/ProductAsset';
 import { sampleKey } from '../library/copies';
+import { comboCandidates } from '../checkout/pricing';
 import { availablePreviewPages, toDetail, toSummary } from './products.service';
 
 export const publicProductsRouter = Router();
@@ -55,8 +56,10 @@ publicProductsRouter.get('/categories', async (_req, res) => {
 
 publicProductsRouter.get('/:slug', async (req, res) => {
   const product = await loadPublished(req);
+  // Not personalised (the response is cached publicly); checkout hides books the buyer owns.
+  const addOns = await comboCandidates(product.categories, [product._id], null, 3);
   res.setHeader('Cache-Control', 'public, max-age=30');
-  res.json({ product: toDetail(product) });
+  res.json({ product: toDetail(product, addOns) });
 });
 
 publicProductsRouter.get('/:slug/cover', async (req, res) => {

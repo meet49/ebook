@@ -106,9 +106,12 @@ export async function rememberReferral(req: Request, userId: Types.ObjectId): Pr
  * cookie or the account) wins if it is inside the window, its affiliate is approved, the
  * product pays commission, and the buyer is not the affiliate. Otherwise the sale is direct.
  * Attribution applies to any eligible eBook bought within the window, not only the linked one.
+ * For a combo order it applies when at least one book pays commission; the order-level rule is
+ * the first such book's, and each order line also keeps its own rule.
  */
-export async function resolveAttribution(req: Request, user: UserDoc, product: ProductDoc): Promise<Attribution> {
-  if (!product.affiliate?.enabled) return { type: 'direct' };
+export async function resolveAttribution(req: Request, user: UserDoc, products: ProductDoc[]): Promise<Attribution> {
+  const product = products.find((p) => p.affiliate?.enabled);
+  if (!product) return { type: 'direct' };
 
   const ids = [cookieClickId(req), user.referral?.clickId ?? null].filter((v): v is Types.ObjectId => Boolean(v));
   if (!ids.length) return { type: 'direct' };
@@ -132,6 +135,6 @@ export async function resolveAttribution(req: Request, user: UserDoc, product: P
     affiliateProductId: click.affiliateProductId,
     clickId: click._id,
     clickedAt: click.createdAt,
-    rule: { type: product.affiliate.type ?? 'percent', value: product.affiliate.value ?? 0 },
+    rule: { type: product.affiliate?.type ?? 'percent', value: product.affiliate?.value ?? 0 },
   };
 }

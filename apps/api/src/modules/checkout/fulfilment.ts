@@ -14,6 +14,7 @@ import { Order, type OrderDoc } from '../../models/Order';
 import { User } from '../../models/User';
 import { issueAuthToken } from '../auth/tokens';
 import { adjustCommissionForRefund, createCommissionForOrder } from '../commissions/ledger';
+import { orderLines } from './lines';
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -69,14 +70,16 @@ export async function fulfilOrder(orderId: Types.ObjectId, payment: GatewayPayme
 
   // Each step below is individually idempotent, so a crash mid-way is repaired by the next event.
   await User.updateOne({ _id: order.userId }, { $addToSet: { roles: 'customer' } });
-  await Entitlement.updateOne(
-    { userId: order.userId, productId: order.productId },
-    {
-      $set: { status: 'active', orderId: order._id, revokedAt: null, revokeReason: null },
-      $setOnInsert: { grantedAt: now },
-    },
-    { upsert: true },
-  );
+  for (const line of orderLines(order)) {
+    await Entitlement.updateOne(
+      { userId: order.userId, productId: line.productId },
+      {
+        $set: { status: 'active', orderId: order._id, revokedAt: null, revokeReason: null },
+        $setOnInsert: { grantedAt: now },
+      },
+      { upsert: true },
+    );
+  }
   await createCommissionForOrder(order);
   if (order.attribution?.clickId) {
     await AffiliateClick.updateOne({ _id: order.attribution.clickId, convertedOrderId: null }, { $set: { convertedOrderId: order._id } });
@@ -88,7 +91,7 @@ export async function fulfilOrder(orderId: Types.ObjectId, payment: GatewayPayme
       entityType: 'Order',
       entityId: order._id,
       actorId: order.userId,
-      meta: { source, paymentId: payment.id, amountPaise: order.amountPaise },
+      meta: { source, paymentId: payment.id, amountPaise: order.amountPaise, books: orderLines(order).length },
     });
     await Order.updateOne({ _id: order._id }, { $set: { fulfilledAt: now } });
   }
@@ -106,8 +109,10 @@ async function sendPurchaseEmailOnce(order: OrderDoc): Promise<void> {
 
   const user = await User.findById(order.userId).select('+passwordHash');
   if (!user) return;
-  const title = order.productSnapshot?.title ?? 'your eBook';
-  const slug = order.productSnapshot?.slug;
+  const lines = orderLines(order);
+  const title = lines.map((l) => l.title).filter(Boolean).join(' + ') || 'your eBook';
+  // One book opens straight in the reader; a combo opens the library with all of them.
+  const slug = lines.length === 1 ? lines[0]!.slug : undefined;
   const token = await issueAuthToken(user._id, 'magic_login', slug ? `/read/${slug}` : '/library', 72 * 60 * 60_000);
 
   sendEmailInBackground(
@@ -123,7 +128,7 @@ async function sendPurchaseEmailOnce(order: OrderDoc): Promise<void> {
   await Notification.create({
     userId: user._id,
     type: 'purchase',
-    title: `“${title}” is in your library`,
+    title: lines.length > 1 ? `${lines.length} eBooks are in your library` : `“${title}” is in your library`,
     body: `Order ${order.orderNumber}`,
     link: slug ? `/read/${slug}` : '/library',
   });
@@ -171,8 +176,8 @@ export async function applyRefund(
   await order.save();
 
   if (order.status === 'refunded') {
-    await Entitlement.updateOne(
-      { userId: order.userId, productId: order.productId, orderId: order._id, status: 'active' },
+    await Entitlement.updateMany(
+      { userId: order.userId, productId: { $in: orderLines(order).map((l) => l.productId) }, orderId: order._id, status: 'active' },
       { $set: { status: 'revoked', revokedAt: new Date(), revokeReason: 'Order refunded' } },
     );
   }

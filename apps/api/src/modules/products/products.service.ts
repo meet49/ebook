@@ -37,6 +37,7 @@ export function toSummary(p: ProductDoc): ProductSummary {
     salePricePaise: p.salePricePaise ?? null,
     effectivePricePaise: p.effectivePricePaise,
     discountPercent: discountPercent(p),
+    comboPricePaise: p.comboPricePaise ?? null,
     featured: p.featured,
     coverUrl: publicCoverUrl(p),
     pageCount: p.pageCount,
@@ -44,7 +45,7 @@ export function toSummary(p: ProductDoc): ProductSummary {
   };
 }
 
-export function toDetail(p: ProductDoc): ProductDetail {
+export function toDetail(p: ProductDoc, addOns: ProductDoc[] = []): ProductDetail {
   return {
     ...toSummary(p),
     description: p.description ?? '',
@@ -54,6 +55,7 @@ export function toDetail(p: ProductDoc): ProductDetail {
     sample: availablePreviewPages(p).length
       ? { url: `${API}/products/${p.slug}/sample?v=${p.pageSetId!.toString().slice(-6)}-${availablePreviewPages(p).join('.')}`, pages: availablePreviewPages(p) }
       : null,
+    addOns: addOns.map(toSummary),
   };
 }
 
@@ -84,6 +86,7 @@ export async function toAdmin(p: ProductDoc): Promise<AdminProduct> {
     pricePaise: p.pricePaise,
     salePricePaise: p.salePricePaise ?? null,
     effectivePricePaise: p.effectivePricePaise,
+    comboPricePaise: p.comboPricePaise ?? null,
     status: p.status,
     featured: p.featured,
     publishedAt: p.publishedAt?.toISOString() ?? null,
@@ -142,6 +145,7 @@ export function applyInput(p: ProductDoc, input: ProductInputParsed): void {
   p.language = input.language;
   p.pricePaise = input.pricePaise;
   p.salePricePaise = input.salePricePaise;
+  p.comboPricePaise = input.comboPricePaise;
   p.featured = input.featured;
   p.set('affiliate', input.affiliate);
   p.previewPages = [...new Set(input.previewPages)].sort((a, b) => a - b);

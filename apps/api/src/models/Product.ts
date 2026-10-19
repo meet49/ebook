@@ -20,6 +20,8 @@ const productSchema = new Schema(
     pricePaise: { type: Number, required: true, validate: integerPaise },
     /** Optional discounted price; must be lower than pricePaise. Checkout charges this when set. */
     salePricePaise: { type: Number, default: null, validate: integerPaise },
+    /** Price when bought together with a same-category book (or soon after buying one). Null: never a combo. */
+    comboPricePaise: { type: Number, default: null, validate: integerPaise },
     /** Derived from pricePaise/salePricePaise on every save; used for sorting and checkout. */
     effectivePricePaise: { type: Number, default: 0 },
     currency: { type: String, default: 'INR', enum: ['INR'] },
@@ -69,6 +71,9 @@ productSchema.pre('validate', function () {
   this.effectivePricePaise = effectivePricePaise(this);
   if (this.salePricePaise != null && this.salePricePaise >= this.pricePaise) {
     this.invalidate('salePricePaise', 'Sale price must be lower than the regular price');
+  }
+  if (this.comboPricePaise != null && this.comboPricePaise >= this.effectivePricePaise) {
+    this.invalidate('comboPricePaise', 'Combo price must be lower than the selling price');
   }
   if (this.affiliate?.type === 'percent' && (this.affiliate.value ?? 0) > 10_000) {
     this.invalidate('affiliate.value', 'Commission cannot exceed 100%');

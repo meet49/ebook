@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BookOpen, ChevronRight, Plus } from "lucide-react";
 import { useDeferredValue, useState } from "react";
 import { formatINR, type ProductStatus } from "@ebook/shared";
+import { ProductRowActions } from "@/components/admin/product-row-actions";
 import { ProductStatusBadge } from "@/components/admin/product-status";
 import { FilterPills, ListCard, SearchField } from "@/components/dashboard/list-ui";
 import { PageHeader } from "@/components/layout/dashboard-shell";
@@ -100,8 +101,8 @@ export default function AdminProductsPage() {
             {/* Phones: stacked rows */}
             <ul className="divide-y md:hidden">
               {data.items.map((p) => (
-                <li key={p.id}>
-                  <Link href={`/admin/products/${p.id}`} className="hover:bg-muted/50 flex items-center gap-3 p-4 transition-colors">
+                <li key={p.id} className="pb-3">
+                  <Link href={`/admin/products/${p.id}`} className="hover:bg-muted/50 flex items-center gap-3 p-4 pb-2 transition-colors">
                     <BookCover src={p.coverUrl} title={p.title} className="w-12 shrink-0 rounded-md" sizes="48px" />
                     <span className="min-w-0 flex-1 space-y-1">
                       <span className="block truncate font-medium">{p.title}</span>
@@ -113,6 +114,7 @@ export default function AdminProductsPage() {
                     </span>
                     <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden />
                   </Link>
+                  <ProductRowActions product={p} className="pl-19" />
                 </li>
               ))}
             </ul>
@@ -124,7 +126,8 @@ export default function AdminProductsPage() {
                   <TableHead>Status</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Pages</TableHead>
-                  <TableHead className="pr-4">Updated</TableHead>
+                  <TableHead>Updated</TableHead>
+                  <TableHead className="pr-4 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -145,9 +148,13 @@ export default function AdminProductsPage() {
                     <TableCell className="tabular-nums">
                       <span className="font-medium">{formatINR(p.effectivePricePaise)}</span>
                       {p.salePricePaise != null && <span className="text-muted-foreground ml-1 text-xs line-through">{formatINR(p.pricePaise)}</span>}
+                      {p.comboPricePaise != null && <span className="text-primary block text-xs">Combo {formatINR(p.comboPricePaise)}</span>}
                     </TableCell>
                     <TableCell className="text-muted-foreground tabular-nums">{p.pageCount || "—"}</TableCell>
-                    <TableCell className="text-muted-foreground pr-4">{dateFmt.format(new Date(p.updatedAt))}</TableCell>
+                    <TableCell className="text-muted-foreground">{dateFmt.format(new Date(p.updatedAt))}</TableCell>
+                    <TableCell className="pr-4">
+                      <ProductRowActions product={p} className="justify-end" />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

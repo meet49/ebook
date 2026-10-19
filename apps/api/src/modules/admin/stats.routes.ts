@@ -45,7 +45,37 @@ adminStatsRouter.get('/stats', async (req, res) => {
     ]),
     Order.aggregate<{ _id: string; title: string; orders: number; revenue: number }>([
       { $match: { status: { $in: SOLD }, paidAt: { $gte: since } } },
-      { $group: { _id: '$productId', title: { $first: '$productSnapshot.title' }, orders: { $sum: 1 }, revenue: { $sum: { $subtract: ['$amountPaise', '$refundedPaise'] } } } },
+      // One row per book; orders made before combos have no lines, so their main book stands in.
+      {
+        $project: {
+          refundedPaise: 1,
+          amountPaise: 1,
+          lines: {
+            $cond: [
+              { $gt: [{ $size: { $ifNull: ['$items', []] } }, 0] },
+              '$items',
+              [{ productId: '$productId', title: '$productSnapshot.title', pricePaise: '$amountPaise' }],
+            ],
+          },
+        },
+      },
+      { $unwind: '$lines' },
+      {
+        $group: {
+          _id: '$lines.productId',
+          title: { $first: '$lines.title' },
+          orders: { $sum: 1 },
+          // Refunds are shared across a combo's books in proportion to their price.
+          revenue: {
+            $sum: {
+              $subtract: [
+                '$lines.pricePaise',
+                { $divide: [{ $multiply: ['$lines.pricePaise', { $ifNull: ['$refundedPaise', 0] }] }, { $max: ['$amountPaise', 1] }] },
+              ],
+            },
+          },
+        },
+      },
       { $sort: { revenue: -1 } },
       { $limit: 5 },
     ]),
@@ -68,7 +98,7 @@ adminStatsRouter.get('/stats', async (req, res) => {
     days,
     revenue: { grossPaise: r.gross, refundedPaise: r.refunded, netPaise: r.gross - r.refunded, orders: r.orders, affiliateOrders: r.affiliateOrders },
     series,
-    topProducts: topProducts.map((p) => ({ productId: String(p._id), title: p.title, orders: p.orders, revenuePaise: p.revenue })),
+    topProducts: topProducts.map((p) => ({ productId: String(p._id), title: p.title, orders: p.orders, revenuePaise: Math.round(p.revenue) })),
     customers,
     affiliates: { approved: affiliates, pending: pendingAffiliates },
     commissions: Object.fromEntries(commissions.map((c) => [c._id, c.amount])),

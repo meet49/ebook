@@ -1,10 +1,12 @@
 import type { OrderDoc } from '../../models/Order';
+import { orderLines, publicLine } from './lines';
 
 export function toCustomerOrder(o: OrderDoc) {
   return {
     orderNumber: o.orderNumber,
     status: o.status,
     product: { title: o.productSnapshot?.title ?? '', slug: o.productSnapshot?.slug ?? '' },
+    lines: orderLines(o).map(publicLine),
     amountPaise: o.amountPaise,
     refundedPaise: o.refundedPaise ?? 0,
     createdAt: o.createdAt.toISOString(),

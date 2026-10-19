@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { emailSchema, nameSchema } from '@ebook/shared';
+import { emailSchema, nameSchema, type CheckoutQuote, type ComboOffers } from '@ebook/shared';
 import { audit } from '../../lib/audit';
 import { HttpError, badRequest, notFound } from '../../lib/errors';
 import { logger } from '../../lib/logger';
@@ -14,12 +14,20 @@ import { Order } from '../../models/Order';
 import { Product } from '../../models/Product';
 import { User, type UserDoc } from '../../models/User';
 import { resolveAttribution } from '../affiliates/attribution';
+import { toSummary } from '../products/products.service';
 import { PaymentMismatchError, assertPaymentMatchesOrder, fulfilOrder, newOrderNumber } from './fulfilment';
+import { orderLines, publicLine } from './lines';
+import { MAX_ADD_ONS, comboCandidates, offersForUser, priceOrder, recentBuyerOf, type PricedOrder } from './pricing';
 
 export const checkoutRouter = Router();
 
+const slugSchema = z.string().trim().toLowerCase().max(80);
+const ORDER_NUMBER = /^EB-\d{8}-[A-Z2-9]{6}$/;
+
 const createOrderSchema = z.object({
-  productSlug: z.string().trim().toLowerCase().max(80),
+  productSlug: slugSchema,
+  /** Same-category books added at their combo price. */
+  addOnSlugs: z.array(slugSchema).max(MAX_ADD_ONS).default([]),
   /** Required only for guests; ignored when signed in. */
   name: nameSchema.optional(),
   email: emailSchema.optional(),
@@ -72,15 +80,31 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
     );
   }
 
-  // Price and commission always come from the server-side product, never the browser.
-  const amountPaise = product.effectivePricePaise;
-  const attribution = await resolveAttribution(req, user, product);
+  // Prices, combo eligibility and commission always come from the server, never the browser.
+  const priced = await priceOrder(product, input.addOnSlugs, user._id);
+  const extras = priced.lines.slice(1).map((l) => l.product);
+  if (extras.length) {
+    const owned = await Entitlement.findOne({ userId: user._id, productId: { $in: extras.map((p) => p._id) }, status: 'active' });
+    if (owned) {
+      const book = extras.find((p) => p._id.equals(owned.productId));
+      throw new HttpError(409, 'ALREADY_OWNED', `You already own “${book?.title ?? 'one of these books'}”. Remove it from this order to continue.`, {
+        addOnSlugs: [book?.slug ?? ''],
+      });
+    }
+  }
+  const amountPaise = priced.totalPaise;
+  const attribution = await resolveAttribution(req, user, priced.lines.map((l) => l.product));
   const orderNumber = newOrderNumber();
   const rzpOrder = await gw.createOrder({
     amount: amountPaise,
     currency: 'INR',
     receipt: orderNumber,
-    notes: { orderNumber, productId: product._id.toString(), userId: user._id.toString() },
+    notes: {
+      orderNumber,
+      productId: product._id.toString(),
+      ...(extras.length ? { addOnIds: extras.map((p) => p._id.toString()).join(',') } : {}),
+      userId: user._id.toString(),
+    },
   });
   if (rzpOrder.amount !== amountPaise) throw new HttpError(502, 'GATEWAY_ERROR', 'Payment provider returned an unexpected amount');
 
@@ -89,13 +113,24 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
     userId: user._id,
     productId: product._id,
     productSnapshot: { title: product.title, slug: product.slug },
+    items: priced.lines.map((l) => ({
+      productId: l.product._id,
+      title: l.product.title,
+      slug: l.product.slug,
+      listPricePaise: l.listPricePaise,
+      pricePaise: l.pricePaise,
+      combo: l.combo,
+      commissionRule: l.product.affiliate?.enabled
+        ? { type: l.product.affiliate.type ?? 'percent', value: l.product.affiliate.value ?? 0 }
+        : null,
+    })),
     customerSnapshot: { name: user.name, email: user.email },
     amountPaise,
     currency: 'INR',
     razorpay: { orderId: rzpOrder.id },
     attribution,
   });
-  await audit({ action: 'order.created', entityType: 'Order', entityId: order._id, actorId: user._id, meta: { attribution: attribution.type }, req });
+  await audit({ action: 'order.created', entityType: 'Order', entityId: order._id, actorId: user._id, meta: { attribution: attribution.type, books: priced.lines.length, combo: priced.lines.some((l) => l.combo) }, req });
 
   res.status(201).json({
     orderNumber,
@@ -104,8 +139,55 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
     currency: 'INR',
     keyId: gw.keyId,
     product: { title: product.title, slug: product.slug },
+    lines: priced.lines.map(lineOf),
     prefill: { name: user.name, email: user.email },
   });
+});
+
+function lineOf(l: PricedOrder['lines'][number]) {
+  return { title: l.product.title, slug: l.product.slug, listPricePaise: l.listPricePaise, pricePaise: l.pricePaise, combo: l.combo };
+}
+
+const quoteSchema = z.object({
+  productSlug: slugSchema,
+  addOnSlugs: z.array(slugSchema).max(MAX_ADD_ONS).default([]),
+  /** A guest's just-paid order, so the confirmation page's combo offer shows the right price. */
+  fromOrder: z.string().regex(ORDER_NUMBER).optional(),
+});
+
+/**
+ * The price breakdown to show before paying. Signed-in buyers see their own combo window; a
+ * guest coming from a just-paid order sees that order's. The order is always re-priced when
+ * it is created, for whoever actually buys.
+ */
+checkoutRouter.post('/quote', async (req, res) => {
+  const input = parse(quoteSchema, req.body);
+  const product = await Product.findOne({ slug: input.productSlug, status: 'published' });
+  if (!product) throw notFound('This eBook is not available');
+  const userId = req.auth?.user._id ?? (input.fromOrder ? await recentBuyerOf(input.fromOrder) : null);
+
+  const priced = await priceOrder(product, input.addOnSlugs, userId);
+  const addOns = await comboCandidates(product.categories, [product._id], userId);
+  const quote: CheckoutQuote = {
+    lines: priced.lines.map(lineOf),
+    totalPaise: priced.totalPaise,
+    savingsPaise: priced.lines.reduce((sum, l) => sum + (l.listPricePaise - l.pricePaise), 0),
+    addOns: addOns.map(toSummary),
+    offerExpiresAt: priced.offerExpiresAt?.toISOString() ?? null,
+  };
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ quote });
+});
+
+/** Combo offers on the confirmation page, for 24 hours after the purchase. */
+checkoutRouter.get('/orders/:orderNumber/offers', async (req, res) => {
+  const orderNumber = String(req.params.orderNumber);
+  if (!ORDER_NUMBER.test(orderNumber)) throw notFound('Order not found');
+  const userId = await recentBuyerOf(orderNumber);
+  const offers = userId ? await offersForUser(userId) : { expiresAt: null, products: [] };
+  const body: ComboOffers = { expiresAt: offers.expiresAt?.toISOString() ?? null, items: offers.products.map(toSummary) };
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ offers: body });
 });
 
 const verifySchema = z.object({
@@ -156,7 +238,7 @@ checkoutRouter.post('/verify', sensitiveLimiter, async (req, res) => {
  */
 checkoutRouter.get('/orders/:orderNumber', async (req, res) => {
   const orderNumber = String(req.params.orderNumber);
-  if (!/^EB-\d{8}-[A-Z2-9]{6}$/.test(orderNumber)) throw notFound('Order not found');
+  if (!ORDER_NUMBER.test(orderNumber)) throw notFound('Order not found');
   const order = await Order.findOne({ orderNumber });
   if (!order) throw notFound('Order not found');
   const email = order.customerSnapshot?.email ?? '';
@@ -165,6 +247,7 @@ checkoutRouter.get('/orders/:orderNumber', async (req, res) => {
     orderNumber: order.orderNumber,
     status: order.status,
     product: order.productSnapshot,
+    lines: orderLines(order).map(publicLine),
     amountPaise: order.amountPaise,
     maskedEmail: local ? `${local.slice(0, 2)}${'•'.repeat(Math.max(1, local.length - 2))}@${domain}` : null,
     isOwner: Boolean(req.auth && req.auth.user._id.equals(order.userId)),

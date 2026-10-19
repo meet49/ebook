@@ -18,7 +18,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { api, errorMessage } from "@/lib/api";
-import type { AdminOrder } from "@/lib/types";
+import { orderTitle, type AdminOrder } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { AdminPager, ListEmpty, ListError, ListSkeleton } from "../_components/admin-list";
 
@@ -110,7 +110,7 @@ export default function AdminOrdersPage() {
                       <span className="flex items-start justify-between gap-3">
                         <span className="min-w-0">
                           <span className="block truncate font-medium">{o.customer.name}</span>
-                          <span className="text-muted-foreground block truncate text-xs">{o.product.title}</span>
+                          <span className="text-muted-foreground block truncate text-xs">{orderTitle(o)}</span>
                         </span>
                         <span className="shrink-0 font-semibold tabular-nums">{formatINR(o.amountPaise)}</span>
                       </span>
@@ -159,7 +159,9 @@ export default function AdminOrdersPage() {
                       <div className="font-medium">{o.customer.name}</div>
                       <div className="text-muted-foreground text-xs">{o.customer.email}</div>
                     </TableCell>
-                    <TableCell className="max-w-48 truncate">{o.product.title}</TableCell>
+                    <TableCell className="max-w-48 truncate" title={orderTitle(o)}>
+                      {orderTitle(o)}
+                    </TableCell>
                     <TableCell>
                       <Source order={o} />
                     </TableCell>
@@ -254,8 +256,18 @@ function OrderDetailPanel({ id }: { id: string }) {
             {order.customer.name}
             <div className="text-muted-foreground break-all">{order.customer.email}</div>
           </dd>
-          <dt className="text-muted-foreground">eBook</dt>
-          <dd>{order.product.title}</dd>
+          <dt className="text-muted-foreground">{order.lines.length > 1 ? "eBooks" : "eBook"}</dt>
+          <dd className="space-y-1">
+            {order.lines.map((l) => (
+              <div key={l.slug} className="flex justify-between gap-3">
+                <span>
+                  {l.title}
+                  {l.combo ? <span className="bg-primary/10 text-primary ml-1.5 rounded-full px-1.5 py-px text-[10px] font-semibold uppercase">Combo</span> : null}
+                </span>
+                <span className="text-muted-foreground shrink-0 tabular-nums">{formatINR(l.pricePaise)}</span>
+              </div>
+            ))}
+          </dd>
           <dt className="text-muted-foreground">Razorpay order</dt>
           <dd className="font-mono text-xs break-all">{order.razorpay.orderId}</dd>
           <dt className="text-muted-foreground">Payment</dt>

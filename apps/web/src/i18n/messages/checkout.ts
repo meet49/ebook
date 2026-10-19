@@ -82,6 +82,27 @@ const en = {
     refunded: "Refunded",
     partially_refunded: "Partly refunded",
   },
+  combo: {
+    addTitle: "Add more books, save more",
+    addHint: "Books on the same topic at a special combo price — only with this order.",
+    add: "Add",
+    added: "Added",
+    save: (amount: string) => `Save ${amount}`,
+    badge: "Combo",
+    youSave: (amount: string) => `You save ${amount} with the combo`,
+    offerEnds: (when: string) => `Combo price — offer ends ${when}`,
+    max: (n: number) => `You can add up to ${n} books to one order.`,
+    priceChanged: "The combo price applies only to the email used for your recent order, so the regular price is charged.",
+    books: (n: number) => (n === 1 ? "1 eBook" : `${n} eBooks`),
+  },
+  offers: {
+    eyebrow: "Special offer",
+    title: "Complete your collection",
+    body: (when: string) => `More books on the same topic at the combo price — offer ends ${when}.`,
+    cta: (price: string) => `Get it for ${price}`,
+    endsIn: (hours: number, minutes: number) => (hours > 0 ? `in ${hours} h ${minutes} min` : `in ${minutes} min`),
+    endsSoon: "very soon",
+  },
 };
 
 export type CheckoutMessages = typeof en;
@@ -168,6 +189,27 @@ const hi: CheckoutMessages = {
     failed: "फ़ेल",
     refunded: "रिफ़ंड हुआ",
     partially_refunded: "आंशिक रिफ़ंड",
+  },
+  combo: {
+    addTitle: "और किताबें जोड़ें, ज़्यादा बचाएँ",
+    addHint: "इसी विषय की किताबें ख़ास कॉम्बो कीमत पर — सिर्फ़ इस ऑर्डर के साथ।",
+    add: "जोड़ें",
+    added: "जोड़ी गई",
+    save: (amount: string) => `${amount} बचाएँ`,
+    badge: "कॉम्बो",
+    youSave: (amount: string) => `कॉम्बो से आपकी बचत ${amount}`,
+    offerEnds: (when: string) => `कॉम्बो कीमत — ऑफ़र ${when} ख़त्म होगा`,
+    max: (n: number) => `एक ऑर्डर में ज़्यादा से ज़्यादा ${n} किताबें जोड़ सकते हैं।`,
+    priceChanged: "कॉम्बो कीमत सिर्फ़ आपके हाल के ऑर्डर वाले ईमेल पर मिलती है, इसलिए पूरी कीमत ली जा रही है।",
+    books: (n: number) => `${n} ई-बुक`,
+  },
+  offers: {
+    eyebrow: "ख़ास ऑफ़र",
+    title: "अपना कलेक्शन पूरा करें",
+    body: (when: string) => `इसी विषय की और किताबें कॉम्बो कीमत पर — ऑफ़र ${when} ख़त्म होगा।`,
+    cta: (price: string) => `${price} में लें`,
+    endsIn: (hours: number, minutes: number) => (hours > 0 ? `${hours} घंटे ${minutes} मिनट में` : `${minutes} मिनट में`),
+    endsSoon: "जल्द ही",
   },
 };
 

@@ -13,11 +13,13 @@ import {
   ListOrdered,
   Lock,
   MonitorSmartphone,
+  Plus,
   ScrollText,
   ShieldCheck,
   Sparkles,
   Zap,
 } from "lucide-react";
+import { formatINR } from "@ebook/shared";
 import { BookCover } from "@/components/products/book-cover";
 import { Price } from "@/components/products/price";
 import { ProductGrid } from "@/components/products/product-card";
@@ -188,6 +190,50 @@ export default async function ProductPage({ params }: PageProps<"/ebooks/[slug]"
 
           {/* Details */}
           <div className="min-w-0 space-y-12 lg:col-start-1">
+            {product.addOns.length > 0 && (
+              <section className="from-accent to-card relative overflow-hidden rounded-3xl border bg-linear-to-br p-5 sm:p-6" aria-labelledby="buy-together">
+                <div aria-hidden className="bg-gradient-brand absolute inset-x-0 top-0 h-1" />
+                <p className="text-primary flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
+                  <Sparkles className="size-3.5" aria-hidden /> {t.buyTogether.eyebrow}
+                </p>
+                <h2 id="buy-together" className="mt-1 text-xl font-semibold tracking-tight">
+                  {t.buyTogether.title}
+                </h2>
+                <p className="text-muted-foreground mt-0.5 text-sm">{t.buyTogether.body}</p>
+                <ul className="mt-5 space-y-3">
+                  {product.addOns.map((addOn) => {
+                    const combo = addOn.comboPricePaise ?? addOn.effectivePricePaise;
+                    const save = addOn.effectivePricePaise - combo;
+                    return (
+                      <li key={addOn.id} className="bg-card flex flex-col gap-4 rounded-2xl border p-4 sm:flex-row sm:items-center">
+                        <div className="flex items-center gap-2">
+                          <BookCover src={product.coverUrl} title={product.title} alt={tc.book.coverOf(product.title)} className="w-12 shrink-0" sizes="48px" />
+                          <Plus className="text-muted-foreground size-4 shrink-0" aria-hidden />
+                          <Link href={`/ebooks/${addOn.slug}`} className="shrink-0">
+                            <BookCover src={addOn.coverUrl} title={addOn.title} alt={tc.book.coverOf(addOn.title)} className="w-12" sizes="48px" />
+                          </Link>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <Link href={`/ebooks/${addOn.slug}`} className="line-clamp-2 text-sm leading-snug font-medium hover:underline">
+                            {addOn.title}
+                          </Link>
+                          <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-sm tabular-nums">
+                            <span className="text-muted-foreground text-xs">{t.buyTogether.comboPrice}</span>
+                            <span className="font-semibold">{formatINR(combo)}</span>
+                            <span className="text-muted-foreground text-xs line-through">{formatINR(addOn.effectivePricePaise)}</span>
+                            <span className="text-success text-xs font-semibold">{t.buyTogether.save(formatINR(save))}</span>
+                          </p>
+                        </div>
+                        <Button asChild className="shrink-0 rounded-full">
+                          <Link href={`/checkout/${product.slug}?add=${addOn.slug}`}>{t.buyTogether.both(formatINR(product.effectivePricePaise + combo))}</Link>
+                        </Button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )}
+
             {product.benefits.length > 0 && (
               <section className="space-y-5">
                 <SectionTitle icon={Sparkles}>{t.benefits}</SectionTitle>

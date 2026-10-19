@@ -9,10 +9,18 @@ import { Order } from '../../models/Order';
 import { Product } from '../../models/Product';
 import { ReadingProgress } from '../../models/ReadingProgress';
 import { toCustomerOrder } from '../checkout/orders.dto';
+import { offersForUser } from '../checkout/pricing';
 import { requireEntitlement } from '../library/access';
 import { toSummary } from '../products/products.service';
 
 export const meRouter = Router();
+
+/** Same-category books at their combo price for 24 hours after a purchase. */
+meRouter.get('/offers', async (req, res) => {
+  const offers = await offersForUser(req.auth!.user._id);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ offers: { expiresAt: offers.expiresAt?.toISOString() ?? null, items: offers.products.map(toSummary) } });
+});
 
 meRouter.get('/orders', async (req, res) => {
   const orders = await Order.find({ userId: req.auth!.user._id, status: { $ne: 'created' } }).sort({ createdAt: -1 }).limit(200);

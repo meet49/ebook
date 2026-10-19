@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { ArrowRight, BookMarked, BookOpen, BookOpenText, CheckCircle2, Clock, MailWarning, PlayCircle, type LucideIcon } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, type ReactNode } from "react";
 import { toast } from "sonner";
+import type { ComboOffers as ComboOffersData } from "@ebook/shared";
+import { ComboOffers } from "@/components/checkout/combo-offers";
 import { BookCover } from "@/components/products/book-cover";
 import { ProductGrid } from "@/components/products/product-card";
 import { Button } from "@/components/ui/button";
@@ -49,6 +51,11 @@ export default function LibraryPage() {
   const t = m.library;
   const { data: user } = useMe();
   const { data, isPending, isError, refetch } = useLibrary();
+  // Same-category books at the combo price for 24 hours after a purchase.
+  const { data: offers } = useQuery({
+    queryKey: ["me", "offers"],
+    queryFn: () => api<{ offers: ComboOffersData }>("/me/offers").then((r) => r.offers),
+  });
   const resend = useMutation({
     mutationFn: () => api("/auth/resend-verification", { method: "POST" }),
     onSuccess: () => toast.success(t.home.resent),
@@ -130,6 +137,8 @@ export default function LibraryPage() {
       ) : (
         <>
           {continueItem && <ContinueReading item={continueItem} />}
+
+          {offers ? <ComboOffers items={offers.items} expiresAt={offers.expiresAt} /> : null}
 
           <section className="space-y-5" aria-labelledby="my-books-heading">
             <div className="flex items-baseline gap-2">

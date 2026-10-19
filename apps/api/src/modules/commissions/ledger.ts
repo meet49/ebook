@@ -5,6 +5,7 @@ import { logger } from '../../lib/logger';
 import { AffiliateProfile } from '../../models/AffiliateProfile';
 import { Commission } from '../../models/Commission';
 import type { OrderDoc } from '../../models/Order';
+import { orderLines } from '../checkout/lines';
 import { Payout } from '../../models/Payout';
 
 /**
@@ -16,6 +17,11 @@ export function calculateCommission(baseAmountPaise: number, rule: { type: Commi
   if (baseAmountPaise <= 0 || rule.value <= 0) return 0;
   if (rule.type === 'percent') return Math.floor((baseAmountPaise * Math.min(rule.value, 10_000)) / 10_000);
   return Math.min(rule.value, baseAmountPaise);
+}
+
+/** Commission for the whole order before any refund: each book under its own rule. */
+function fullCommission(order: OrderDoc): number {
+  return orderLines(order).reduce((sum, l) => sum + (l.commissionRule ? calculateCommission(l.pricePaise, l.commissionRule) : 0), 0);
 }
 
 /** Creates the ledger entry for an affiliate-attributed paid order. Safe to call repeatedly. */
@@ -30,9 +36,10 @@ export async function createCommissionForOrder(order: OrderDoc): Promise<void> {
     return;
   }
 
-  const rule = { type: a.rule.type as CommissionType, value: a.rule.value ?? 0 };
-  const amountPaise = calculateCommission(order.amountPaise, rule);
+  // Each book pays on what was charged for it, under its own rule (a combo can mix rules).
+  const amountPaise = fullCommission(order);
   if (amountPaise <= 0) return;
+  const rule = orderLines(order).find((l) => l.commissionRule)?.commissionRule ?? { type: a.rule.type as CommissionType, value: a.rule.value ?? 0 };
 
   const paidAt = order.paidAt ?? new Date();
   try {
@@ -63,7 +70,12 @@ export async function adjustCommissionForRefund(order: OrderDoc, actorId?: Types
   if (!commission || commission.status === 'reversed') return;
 
   const net = Math.max(0, order.amountPaise - (order.refundedPaise ?? 0));
-  const recalculated = calculateCommission(net, { type: commission.rule!.type as CommissionType, value: commission.rule!.value });
+  // A combo mixes rules, so its commission shrinks in proportion to the refund; a single book
+  // is recalculated under its rule.
+  const recalculated =
+    orderLines(order).length > 1
+      ? Math.floor((fullCommission(order) * net) / Math.max(1, order.amountPaise))
+      : calculateCommission(net, { type: commission.rule!.type as CommissionType, value: commission.rule!.value });
 
   if (commission.status === 'paid') {
     if (recalculated < commission.amountPaise) {

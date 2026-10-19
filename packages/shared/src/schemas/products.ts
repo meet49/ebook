@@ -43,6 +43,11 @@ export const productInputSchema = z
       .min(MIN_PRICE_PAISE, 'Price must be at least ₹1')
       .max(MAX_PRICE_PAISE, 'Price must be at most ₹1,00,000'),
     salePricePaise: paise.min(MIN_PRICE_PAISE, 'Sale price must be at least ₹1').nullable().default(null),
+    /**
+     * Price when bought together with another book from the same category, or within the
+     * post-purchase offer window. Null means the book is never offered as a combo.
+     */
+    comboPricePaise: paise.min(MIN_PRICE_PAISE, 'Combo price must be at least ₹1').nullable().default(null),
     featured: z.boolean().default(false),
     affiliate: z
       .object({
@@ -66,6 +71,9 @@ export const productInputSchema = z
       ctx.addIssue({ code: 'custom', path: ['affiliate', 'value'], message: 'Commission cannot exceed 100%' });
     }
     const charged = p.salePricePaise ?? p.pricePaise;
+    if (p.comboPricePaise != null && p.comboPricePaise >= charged) {
+      ctx.addIssue({ code: 'custom', path: ['comboPricePaise'], message: 'Combo price must be lower than the selling price' });
+    }
     if (p.affiliate.type === 'fixed' && p.affiliate.value > charged) {
       ctx.addIssue({ code: 'custom', path: ['affiliate', 'value'], message: 'Commission cannot exceed the selling price' });
     }
