@@ -6,7 +6,7 @@ import { getMessages } from "@/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = (await getMessages()).affiliateProgram;
-  return { title: t.metaTitle, description: t.metaDescription };
+  return { title: t.metaTitle, description: t.metaDescription, alternates: { canonical: "/affiliates" } };
 }
 
 const STEP_ICONS = [Send, Share2, Wallet];

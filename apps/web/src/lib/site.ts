@@ -1,5 +1,11 @@
 export const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME ?? "ReadnShare";
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+/**
+ * Public address of the site, used for absolute links (sitemap, structured data, share images).
+ * Set NEXT_PUBLIC_SITE_URL in production; on Vercel the production domain is the fallback.
+ */
+export const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
 export const SUPPORT_EMAIL = "devlineinfotech@gmail.com";
 
 /**

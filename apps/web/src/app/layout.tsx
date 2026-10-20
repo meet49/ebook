@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   title: { default: `${SITE_NAME} — Practical eBooks you can read anywhere`, template: `%s · ${SITE_NAME}` },
   description: "Buy practical, expert-written eBooks and read them instantly in a beautiful online reader.",
   appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "default" },
+  openGraph: { type: "website", siteName: SITE_NAME, locale: "en_IN" },
+  twitter: { card: "summary_large_image" },
   formatDetection: { telephone: false },
 };
 

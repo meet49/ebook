@@ -27,17 +27,22 @@ import { SamplePages } from "@/components/products/sample-pages";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { getMessages } from "@/i18n/server";
+import { absoluteUrl, jsonLd, organizationLd } from "@/lib/seo";
 import { getCatalog, getProduct } from "@/lib/server-api";
 
 export async function generateMetadata({ params }: PageProps<"/ebooks/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const product = await getProduct(slug);
   if (!product) return { title: (await getMessages()).product.notFound };
-  const description = product.subtitle || product.description.slice(0, 160);
+  const description = (product.subtitle || product.description).replace(/\s+/g, " ").trim().slice(0, 160);
+  const path = `/ebooks/${product.slug}`;
   return {
-    title: product.title,
+    title: product.author ? `${product.title} by ${product.author}` : product.title,
     description,
-    openGraph: { title: product.title, description, images: product.coverUrl ? [product.coverUrl] : undefined },
+    alternates: { canonical: path },
+    // The share image comes from ./opengraph-image.tsx (cover, title and price).
+    openGraph: { type: "book", url: path, title: product.title, description, authors: product.author ? [product.author] : undefined },
+    twitter: { card: "summary_large_image", title: product.title, description },
   };
 }
 
@@ -61,6 +66,47 @@ export default async function ProductPage({ params }: PageProps<"/ebooks/[slug]"
   const t = messages.product;
   const tc = messages.common;
 
+  // Structured data: lets Google show the book with its price and availability in results.
+  const productUrl = absoluteUrl(`/ebooks/${product.slug}`);
+  const structured = {
+    "@context": "https://schema.org",
+    "@graph": [
+      organizationLd,
+      {
+        "@type": ["Product", "Book"],
+        "@id": `${productUrl}#book`,
+        name: product.title,
+        description: product.description || product.subtitle || undefined,
+        url: productUrl,
+        image: product.coverUrl ? absoluteUrl(product.coverUrl) : undefined,
+        sku: product.slug,
+        category: product.categories[0],
+        inLanguage: product.language,
+        numberOfPages: product.pageCount || undefined,
+        bookFormat: "https://schema.org/EBook",
+        author: product.author ? { "@type": "Person", name: product.author } : undefined,
+        brand: { "@id": organizationLd["@id"] },
+        offers: {
+          "@type": "Offer",
+          url: productUrl,
+          price: (product.effectivePricePaise / 100).toFixed(2),
+          priceCurrency: "INR",
+          availability: "https://schema.org/InStock",
+          itemCondition: "https://schema.org/NewCondition",
+          seller: { "@id": organizationLd["@id"] },
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
+          { "@type": "ListItem", position: 2, name: "eBooks", item: absoluteUrl("/ebooks") },
+          { "@type": "ListItem", position: 3, name: product.title, item: productUrl },
+        ],
+      },
+    ],
+  };
+
   const more = (await getCatalog({ sort: "featured", pageSize: 5 })).items.filter((p) => p.id !== product.id).slice(0, 4);
   const checkoutHref = `/checkout/${product.slug}`;
 
@@ -73,6 +119,7 @@ export default async function ProductPage({ params }: PageProps<"/ebooks/[slug]"
 
   return (
     <div className="relative">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(structured) }} />
       <div className="mx-auto w-full max-w-6xl px-4 pt-6 pb-12 sm:px-6 sm:pt-8 lg:pb-20">
         <nav className="text-muted-foreground mb-6 text-sm" aria-label={t.breadcrumb}>
           <ol className="flex min-w-0 items-center gap-1.5">

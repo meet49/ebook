@@ -8,7 +8,7 @@ import { CopyEmailButton } from "./copy-email";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = (await getMessages()).contact;
-  return { title: t.metaTitle, description: t.metaDescription };
+  return { title: t.metaTitle, description: t.metaDescription, alternates: { canonical: "/contact" } };
 }
 
 export default async function ContactPage() {

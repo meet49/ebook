@@ -4,7 +4,7 @@ import { BusinessDetails } from "@/components/shared/business-details";
 import { LegalPage } from "@/components/shared/legal-page";
 import { SITE_NAME, SUPPORT_EMAIL } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Shipping & delivery policy" };
+export const metadata: Metadata = { title: "Shipping & delivery policy", alternates: { canonical: "/legal/delivery" } };
 
 // TEMPLATE: confirm with the business owner before launch.
 export default function DeliveryPage() {

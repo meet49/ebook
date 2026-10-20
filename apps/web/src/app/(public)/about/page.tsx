@@ -7,7 +7,7 @@ import { BUSINESS } from "@/lib/site";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = (await getMessages()).about;
-  return { title: t.metaTitle, description: t.metaDescription };
+  return { title: t.metaTitle, description: t.metaDescription, alternates: { canonical: "/about" } };
 }
 
 const OFFER_ICONS = [BookOpen, Eye, ShieldCheck, Fingerprint];

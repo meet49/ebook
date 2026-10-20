@@ -10,9 +10,15 @@ import { getMessages } from "@/i18n/server";
 import { getCatalog, getCategories } from "@/lib/server-api";
 import { cn } from "@/lib/utils";
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ searchParams }: PageProps<"/ebooks">): Promise<Metadata> {
   const t = (await getMessages()).catalog;
-  return { title: t.metaTitle, description: t.metaDescription };
+  const raw = (await searchParams).category;
+  const category = typeof raw === "string" && raw.length <= 40 ? raw : undefined;
+  return {
+    title: category ? `${category} eBooks` : t.metaTitle,
+    description: t.metaDescription,
+    alternates: { canonical: category ? `/ebooks?category=${encodeURIComponent(category)}` : "/ebooks" },
+  };
 }
 
 const PAGE_SIZE = 12;

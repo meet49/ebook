@@ -4,7 +4,7 @@ import { BusinessDetails } from "@/components/shared/business-details";
 import { LegalPage } from "@/components/shared/legal-page";
 import { SITE_NAME, SUPPORT_EMAIL } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Cancellation & refund policy" };
+export const metadata: Metadata = { title: "Cancellation & refund policy", alternates: { canonical: "/legal/refunds" } };
 
 // TEMPLATE: confirm the refund window and conditions with the business owner before launch.
 export default function RefundsPage() {

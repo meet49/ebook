@@ -4,7 +4,7 @@ import { BusinessDetails } from "@/components/shared/business-details";
 import { LegalPage } from "@/components/shared/legal-page";
 import { OPERATOR, SITE_NAME, SUPPORT_EMAIL } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Privacy policy" };
+export const metadata: Metadata = { title: "Privacy policy", alternates: { canonical: "/legal/privacy" } };
 
 // TEMPLATE: have this policy reviewed (including DPDP Act 2023 obligations) before launch.
 export default function PrivacyPage() {

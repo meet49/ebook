@@ -4,7 +4,7 @@ import { BusinessDetails } from "@/components/shared/business-details";
 import { LegalPage } from "@/components/shared/legal-page";
 import { BUSINESS, OPERATOR, SITE_NAME } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Terms & conditions" };
+export const metadata: Metadata = { title: "Terms & conditions", alternates: { canonical: "/legal/terms" } };
 
 // TEMPLATE: have these terms reviewed by a qualified lawyer before launch (see docs/DEPLOYMENT.md).
 export default function TermsPage() {

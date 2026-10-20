@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -23,7 +24,30 @@ import { Hero } from "@/components/home/hero";
 import { InstallAppButton } from "@/components/pwa/install-app";
 import { Button } from "@/components/ui/button";
 import { getMessages } from "@/i18n/server";
+import { absoluteUrl, jsonLd, organizationLd } from "@/lib/seo";
 import { getCatalog, getCategories } from "@/lib/server-api";
+import { SITE_NAME } from "@/lib/site";
+
+export const metadata: Metadata = { alternates: { canonical: "/" } };
+
+const siteLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    organizationLd,
+    {
+      "@type": "WebSite",
+      "@id": absoluteUrl("/#website"),
+      name: SITE_NAME,
+      url: absoluteUrl("/"),
+      publisher: { "@id": organizationLd["@id"] },
+      potentialAction: {
+        "@type": "SearchAction",
+        target: { "@type": "EntryPoint", urlTemplate: absoluteUrl("/ebooks?q={search_term_string}") },
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ],
+};
 
 /** Featured titles first, topped up with the newest ones. */
 async function shelfBooks(): Promise<ProductSummary[]> {
@@ -45,6 +69,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(siteLd) }} />
       <Hero books={books.slice(0, 3)} />
 
       <FeaturedEbooks books={books} categories={categories.slice(0, 10)} t={h.shelf} />
