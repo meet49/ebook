@@ -198,7 +198,7 @@ describe('public catalog', () => {
     for (const body of [JSON.stringify(list.body), JSON.stringify(detail.body)]) {
       expect(body).not.toMatch(/storageKey|original|affiliate|\.pdf/);
     }
-    expect(detail.body.product).toMatchObject({ description: 'Learn to focus.', sample: { pages: [1, 2, 3] } });
+    expect(detail.body.product).toMatchObject({ description: 'Learn to focus.' });
   });
 
   it('searches, filters by category and sorts by price', async () => {
@@ -219,20 +219,10 @@ describe('public catalog', () => {
     await request(app).get('/api/v1/products?sort=bogus').expect(400);
   });
 
-  it('serves a public sample PDF containing only the chosen preview pages', async () => {
+  it('never exposes preview pages of a book publicly', async () => {
     const live = await publishedProduct({}, 3);
-    await admin.put(`/api/v1/admin/products/${live.id}`).send(draft({ slug: live.slug, previewPages: [2] })).expect(200);
-
-    const detail = await request(app).get(`/api/v1/products/${live.slug}`);
-    expect(detail.body.product.sample.pages).toEqual([2]);
-    expect(detail.body.product.sample.url.startsWith(`/api/v1/products/${live.slug}/sample?v=`)).toBe(true);
-
-    const sample = await request(app).get(detail.body.product.sample.url).buffer(true).parse(binary).expect(200);
-    expect(sample.headers['content-type']).toBe('application/pdf');
-    const { pages, text } = await pdfText(sample.body as Buffer);
-    expect(pages).toBe(1);
-    expect(text).toContain('Chapter 2');
-    expect(text).not.toContain('Chapter 1');
-    expect(text).toContain('SAMPLE');
+    const detail = await request(app).get(`/api/v1/products/${live.slug}`).expect(200);
+    expect(detail.body.product).not.toHaveProperty('sample');
+    await request(app).get(`/api/v1/products/${live.slug}/sample`).expect(404);
   });
 });

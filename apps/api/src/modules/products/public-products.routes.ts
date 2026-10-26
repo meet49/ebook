@@ -5,9 +5,8 @@ import { sendObject } from '../../lib/serve';
 import { parse } from '../../middleware/validate';
 import { Product, type ProductDoc } from '../../models/Product';
 import { ProductAsset } from '../../models/ProductAsset';
-import { sampleKey } from '../library/copies';
 import { comboCandidates } from '../checkout/pricing';
-import { availablePreviewPages, toDetail, toSummary } from './products.service';
+import { toDetail, toSummary } from './products.service';
 
 export const publicProductsRouter = Router();
 
@@ -68,13 +67,4 @@ publicProductsRouter.get('/:slug/cover', async (req, res) => {
   if (!asset) throw notFound('No cover');
   // URLs carry ?v=<assetId>, so a new upload gets a new URL and old ones can be cached for long.
   await sendObject(res, asset.storageKey, 'image/webp', 'public, max-age=86400');
-});
-
-/** Public sample: only the pages the admin chose as previews, stamped "SAMPLE". */
-publicProductsRouter.get('/:slug/sample', async (req, res) => {
-  const product = await loadPublished(req);
-  const pages = availablePreviewPages(product);
-  if (!pages.length) throw notFound('No sample available');
-  const key = await sampleKey(product, pages);
-  await sendObject(res, key, 'application/pdf', 'public, max-age=3600');
 });

@@ -14,7 +14,6 @@ import {
   Lock,
   MonitorSmartphone,
   Plus,
-  ScrollText,
   ShieldCheck,
   Sparkles,
   Zap,
@@ -23,7 +22,6 @@ import { formatINR, formatUSD, intlComboCents } from "@ebook/shared";
 import { BookCover } from "@/components/products/book-cover";
 import { Price } from "@/components/products/price";
 import { ProductGrid } from "@/components/products/product-card";
-import { SamplePages } from "@/components/products/sample-pages";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { getMessages } from "@/i18n/server";
@@ -319,16 +317,6 @@ export default async function ProductPage({ params }: PageProps<"/ebooks/[slug]"
               <section className="space-y-5">
                 <SectionTitle icon={BookOpenText}>{t.about}</SectionTitle>
                 <div className="text-muted-foreground max-w-prose text-[0.95rem] leading-7 whitespace-pre-line">{product.description}</div>
-              </section>
-            )}
-
-            {product.sample && (
-              <section className="space-y-5">
-                <div className="space-y-2">
-                  <SectionTitle icon={ScrollText}>{t.sample.title}</SectionTitle>
-                  <p className="text-muted-foreground text-sm">{t.sample.hint}</p>
-                </div>
-                <SamplePages title={product.title} sample={product.sample} />
               </section>
             )}
 

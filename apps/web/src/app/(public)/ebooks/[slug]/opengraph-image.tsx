@@ -68,7 +68,7 @@ export default async function BookOpenGraphImage({ params }: { params: Promise<{
               {onSale ? <div style={{ display: "flex", fontSize: 32, opacity: 0.7, textDecoration: "line-through" }}>{formatINR(product.pricePaise)}</div> : null}
             </div>
           ) : null}
-          <div style={{ display: "flex", fontSize: 28, marginTop: 18, opacity: 0.9 }}>{SITE_NAME} · Read a free sample · Instant access</div>
+          <div style={{ display: "flex", fontSize: 28, marginTop: 18, opacity: 0.9 }}>{SITE_NAME} · Instant access · Read on any device</div>
         </div>
       </div>
     ),

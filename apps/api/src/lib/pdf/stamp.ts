@@ -69,20 +69,3 @@ export async function personalizePdf(original: Uint8Array, info: LicenseInfo): P
   doc.setCreator(winAnsi(info.siteName));
   return doc.save({ useObjectStreams: true });
 }
-
-/** A short public preview: only the chosen pages, stamped "SAMPLE". */
-export async function buildSamplePdf(original: Uint8Array, pages: number[], info: { title: string; siteName: string; url: string }): Promise<Uint8Array> {
-  const source = await PDFDocument.load(original, { updateMetadata: false });
-  const out = await PDFDocument.create();
-  const copied = await out.copyPages(source, pages.map((n) => n - 1));
-  const font = await out.embedFont(StandardFonts.Helvetica);
-  const bold = await out.embedFont(StandardFonts.HelveticaBold);
-  const footer = winAnsi(`Free sample of "${info.title}" - (c) ${info.siteName}. Get the full book at ${info.url}`);
-  for (const page of copied) {
-    out.addPage(page);
-    stampPage(page, font, bold, footer, 'SAMPLE', 0.09);
-  }
-  out.setTitle(winAnsi(`${info.title} (sample)`));
-  out.setProducer(winAnsi(info.siteName));
-  return out.save({ useObjectStreams: true });
-}

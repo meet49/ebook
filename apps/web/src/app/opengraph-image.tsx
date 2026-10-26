@@ -34,7 +34,7 @@ export default function OpenGraphImage() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div style={{ fontSize: 72, fontWeight: 800, lineHeight: 1.05, maxWidth: 900 }}>Practical eBooks you can read anywhere</div>
-          <div style={{ fontSize: 32, opacity: 0.85 }}>Read a free sample · Pay with UPI · Start reading in seconds</div>
+          <div style={{ fontSize: 32, opacity: 0.85 }}>Pay with UPI · Start reading in seconds · Any device</div>
         </div>
 
         <div style={{ display: "flex", gap: 14 }}>

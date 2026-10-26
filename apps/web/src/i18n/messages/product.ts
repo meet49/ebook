@@ -1,4 +1,4 @@
-/** Product (book detail) page, its sample viewer and the mobile buy bar. */
+/** Product (book detail) page and the mobile buy bar. */
 const en = {
   notFound: "eBook not found",
   breadcrumb: "Breadcrumb",
@@ -22,18 +22,6 @@ const en = {
   formatValue: "Online reader",
   benefits: "What you'll get",
   about: "About this eBook",
-  sample: {
-    title: "Read a sample",
-    hint: "Tap a page to open it — these are real pages from the book.",
-    pageShort: (n: number) => `p. ${n}`,
-    open: (n: number) => `Open sample page ${n}`,
-    dialogTitle: (title: string, n: number) => `${title} — sample page ${n}`,
-    dialogDescription: "Preview of a sample page from this eBook.",
-    pageAlt: (n: number) => `Sample page ${n}`,
-    error: "The sample could not be loaded. Please try again later.",
-    previous: "Previous",
-    next: "Next",
-  },
   toc: {
     title: "Table of contents",
     page: (n: number) => `p. ${n}`,
@@ -79,18 +67,6 @@ const hi: ProductMessages = {
   formatValue: "ऑनलाइन रीडर",
   benefits: "आपको क्या मिलेगा",
   about: "इस ई-बुक के बारे में",
-  sample: {
-    title: "सैंपल पढ़ें",
-    hint: "पेज खोलने के लिए उस पर टैप करें — ये किताब के असली पेज हैं।",
-    pageShort: (n: number) => `पेज ${n}`,
-    open: (n: number) => `सैंपल पेज ${n} खोलें`,
-    dialogTitle: (title: string, n: number) => `${title} — सैंपल पेज ${n}`,
-    dialogDescription: "इस ई-बुक के एक सैंपल पेज की झलक।",
-    pageAlt: (n: number) => `सैंपल पेज ${n}`,
-    error: "सैंपल लोड नहीं हो सका। कृपया थोड़ी देर बाद फिर कोशिश करें।",
-    previous: "पिछला",
-    next: "अगला",
-  },
   toc: {
     title: "विषय-सूची",
     page: (n: number) => `पेज ${n}`,

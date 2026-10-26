@@ -56,7 +56,7 @@ const en = {
     eyebrow: "How it works",
     title: "From checkout to chapter one in under a minute",
     items: [
-      { title: "Choose your book", body: "Browse the collection and read real sample pages before you buy." },
+      { title: "Choose your book", body: "Browse the collection and see the chapters and what you'll learn before you buy." },
       { title: "Pay in seconds", body: "UPI, cards, netbanking or wallets through Razorpay. No account needed upfront." },
       { title: "Start reading", body: "The book lands in your library the moment payment is verified — plus a sign-in link by email." },
     ],
@@ -128,7 +128,7 @@ const en = {
     titleStart: "Your next favourite book is",
     titleAccent: "one click",
     titleEnd: "away.",
-    body: "Read a free sample of any title — no account needed.",
+    body: "Pay with UPI and start reading in seconds — no account needed.",
     button: "Explore eBooks",
   },
 };
@@ -192,7 +192,7 @@ const hi: HomeMessages = {
     eyebrow: "कैसे काम करता है",
     title: "चेकआउट से पहले अध्याय तक, एक मिनट से भी कम में",
     items: [
-      { title: "किताब चुनें", body: "कलेक्शन देखें और ख़रीदने से पहले असली सैंपल पेज पढ़ें।" },
+      { title: "किताब चुनें", body: "कलेक्शन देखें और ख़रीदने से पहले अध्याय और सीखने वाली बातें देखें।" },
       { title: "सेकंडों में पेमेंट", body: "Razorpay से UPI, कार्ड, नेटबैंकिंग या वॉलेट। पहले अकाउंट बनाने की ज़रूरत नहीं।" },
       { title: "पढ़ना शुरू करें", body: "पेमेंट कन्फ़र्म होते ही किताब आपकी लाइब्रेरी में — साथ में ईमेल पर साइन-इन लिंक भी।" },
     ],
@@ -264,7 +264,7 @@ const hi: HomeMessages = {
     titleStart: "आपकी अगली पसंदीदा किताब बस",
     titleAccent: "एक क्लिक",
     titleEnd: "दूर है।",
-    body: "किसी भी किताब का फ़्री सैंपल पढ़ें — अकाउंट की ज़रूरत नहीं।",
+    body: "UPI से पेमेंट करें और कुछ ही सेकंड में पढ़ना शुरू करें — अकाउंट की ज़रूरत नहीं।",
     button: "ई-बुक्स देखें",
   },
 };

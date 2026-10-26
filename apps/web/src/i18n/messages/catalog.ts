@@ -1,7 +1,7 @@
 /** eBook catalogue: /ebooks page, search, filters, sorting and pagination. */
 const en = {
   metaTitle: "All eBooks",
-  metaDescription: "Browse every eBook in the store. Read samples, compare prices and start reading in seconds.",
+  metaDescription: "Browse every eBook in the store. See what each book covers, compare prices and start reading in seconds.",
   eyebrow: "The ReadnShare store",
   titleBefore: "Find your next",
   titleAccent: "great",
@@ -47,7 +47,7 @@ export type CatalogMessages = typeof en;
 
 const hi: CatalogMessages = {
   metaTitle: "सभी ई-बुक्स",
-  metaDescription: "स्टोर की हर ई-बुक देखें। सैंपल पढ़ें, कीमतें मिलाएँ और कुछ ही सेकंड में पढ़ना शुरू करें।",
+  metaDescription: "स्टोर की हर ई-बुक देखें। जानें हर किताब में क्या है, कीमतें मिलाएँ और कुछ ही सेकंड में पढ़ना शुरू करें।",
   eyebrow: "ReadnShare स्टोर",
   titleBefore: "अपनी अगली",
   titleAccent: "बेहतरीन",

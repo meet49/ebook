@@ -1,5 +1,4 @@
-import { env } from '../../config/env';
-import { buildSamplePdf, personalizePdf } from '../../lib/pdf/stamp';
+import { personalizePdf } from '../../lib/pdf/stamp';
 import { storage, storageKeys } from '../../lib/storage';
 import { ProductAsset } from '../../models/ProductAsset';
 import type { ProductDoc } from '../../models/Product';
@@ -49,14 +48,3 @@ export function licensedCopyKey(product: ProductDoc, user: UserDoc, orderNumber:
   );
 }
 
-/** Storage key of the public sample built from the chosen preview pages. */
-export function sampleKey(product: ProductDoc, pages: number[]): Promise<string> {
-  const key = storageKeys.sample(product._id.toString(), product.pageSetId!.toString(), pages);
-  return cached(key, async () =>
-    buildSamplePdf(await originalBytes(product), pages, {
-      title: product.title,
-      siteName: SITE_NAME,
-      url: `${env.APP_URL}/ebooks/${product.slug}`,
-    }),
-  );
-}

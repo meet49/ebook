@@ -13,7 +13,7 @@ const en = {
   offerTitle: "What you get",
   offer: [
     { title: "Digital eBooks", body: "Delivered instantly to your online library after payment. Nothing is shipped." },
-    { title: "Free samples", body: "Read real sample pages of a book before you buy it." },
+    { title: "Know before you buy", body: "See each book's chapters and what you'll learn before you pay." },
     { title: "Secure payments", body: "UPI, cards, netbanking and wallets through Razorpay, in Indian Rupees." },
     { title: "Your personal copy", body: "Each copy is licensed to you and marked with your email, which protects authors' work." },
   ],
@@ -44,7 +44,7 @@ const hi: AboutMessages = {
   offerTitle: "आपको क्या मिलता है",
   offer: [
     { title: "डिजिटल ई-बुक्स", body: "पेमेंट के बाद तुरंत आपकी ऑनलाइन लाइब्रेरी में। कुछ भी शिप नहीं होता।" },
-    { title: "फ़्री सैंपल", body: "ख़रीदने से पहले किताब के असली सैंपल पेज पढ़ें।" },
+    { title: "ख़रीदने से पहले जानें", body: "पेमेंट से पहले हर किताब के अध्याय और सीखने वाली बातें देखें।" },
     { title: "सुरक्षित पेमेंट", body: "Razorpay से UPI, कार्ड, नेटबैंकिंग और वॉलेट — भारतीय रुपये में।" },
     { title: "आपकी अपनी कॉपी", body: "हर कॉपी आपके नाम लाइसेंस होती है और उस पर आपका ईमेल होता है, जिससे लेखकों का काम सुरक्षित रहता है।" },
   ],

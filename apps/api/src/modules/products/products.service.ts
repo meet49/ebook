@@ -19,12 +19,6 @@ function discountPercent(p: ProductDoc): number {
   return Math.round((1 - p.salePricePaise / p.pricePaise) * 100);
 }
 
-/** Preview pages that actually exist in the live page set, sorted. */
-export function availablePreviewPages(p: ProductDoc): number[] {
-  if (!p.pageSetId) return [];
-  return [...new Set(p.previewPages)].filter((n) => n >= 1 && n <= p.pageCount).sort((a, b) => a - b);
-}
-
 export function toSummary(p: ProductDoc): ProductSummary {
   return {
     id: p._id.toString(),
@@ -54,9 +48,6 @@ export function toDetail(p: ProductDoc, addOns: ProductDoc[] = []): ProductDetai
     benefits: p.benefits,
     language: p.language ?? 'English',
     toc: p.toc.map((t) => ({ title: t.title ?? '', page: t.page ?? 1 })),
-    sample: availablePreviewPages(p).length
-      ? { url: `${API}/products/${p.slug}/sample?v=${p.pageSetId!.toString().slice(-6)}-${availablePreviewPages(p).join('.')}`, pages: availablePreviewPages(p) }
-      : null,
     addOns: addOns.map(toSummary),
   };
 }

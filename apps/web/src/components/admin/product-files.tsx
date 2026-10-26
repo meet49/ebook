@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
-import { PdfPageImage } from "@/components/products/sample-pages";
+import { PdfPageImage } from "@/components/products/pdf-page-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { adminPdfUrl, useProductAction, useSetProductCache } from "@/lib/admin-products";
 import { usePdfDocument } from "@/lib/pdf-client";

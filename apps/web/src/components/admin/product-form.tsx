@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import {
@@ -16,18 +16,13 @@ import {
 import { FormField } from "@/components/forms/form-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { PdfPageImage } from "@/components/products/sample-pages";
-import { Skeleton } from "@/components/ui/skeleton";
-import { adminPdfUrl } from "@/lib/admin-products";
-import { usePdfDocument } from "@/lib/pdf-client";
 import { handleFormError } from "@/lib/forms";
-import { cn } from "@/lib/utils";
 
 const money = /^\d{1,7}(\.\d{1,2})?$/;
 
@@ -352,30 +347,6 @@ export function ProductForm({
         </FieldGroup>
       </Section>
 
-      <Section
-        title="Preview pages"
-        description={pageCount ? "Pages anyone can view as a watermarked sample (up to 10)." : "Available after the PDF has been processed."}
-      >
-        {pageCount > 0 && product ? (
-          <Controller
-            control={form.control}
-            name="previewPages"
-            render={({ field, fieldState }) => (
-              <PreviewPicker
-                productId={product.id}
-                version={product.updatedAt}
-                pageCount={pageCount}
-                value={field.value}
-                onChange={field.onChange}
-                error={fieldState.error?.message}
-              />
-            )}
-          />
-        ) : (
-          <p className="text-muted-foreground text-sm">Upload the PDF first.</p>
-        )}
-      </Section>
-
       <Section title="Table of contents" description="Filled automatically from the PDF's bookmarks when available. Prefix sub-sections with “— ”.">
         <div className="space-y-2">
           {toc.fields.map((item, i) => (
@@ -427,77 +398,5 @@ export function ProductForm({
         </Button>
       </div>
     </form>
-  );
-}
-
-function PreviewPicker({
-  productId,
-  version,
-  pageCount,
-  value,
-  onChange,
-  error,
-}: {
-  productId: string;
-  version: string;
-  pageCount: number;
-  value: number[];
-  onChange: (v: number[]) => void;
-  error?: string;
-}) {
-  const [extra, setExtra] = useState("");
-  const shown = Math.min(pageCount, 12);
-  const { doc } = usePdfDocument(adminPdfUrl(productId, version));
-  const toggle = (n: number) => onChange(value.includes(n) ? value.filter((p) => p !== n) : [...value, n].sort((a, b) => a - b));
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-        {Array.from({ length: shown }, (_, i) => i + 1).map((n) => {
-          const selected = value.includes(n);
-          return (
-            <button
-              key={n}
-              type="button"
-              onClick={() => toggle(n)}
-              aria-pressed={selected}
-              className={cn(
-                "relative aspect-[1/1.414] overflow-hidden rounded-md border-2 bg-white transition",
-                selected ? "border-primary ring-primary/30 ring-3" : "border-transparent opacity-70 hover:opacity-100",
-              )}
-            >
-              {doc ? <PdfPageImage doc={doc} page={n} width={130} alt={`Page ${n}`} className="h-full w-full object-cover object-top" /> : <Skeleton className="h-full w-full" />}
-              <span className="bg-background/90 absolute bottom-1 left-1 rounded px-1 text-xs font-medium">{n}</span>
-            </button>
-          );
-        })}
-      </div>
-      {pageCount > shown && (
-        <div className="flex max-w-xs items-center gap-2">
-          <Input
-            type="number"
-            min={1}
-            max={pageCount}
-            placeholder={`Page 1–${pageCount}`}
-            value={extra}
-            onChange={(e) => setExtra(e.target.value)}
-            aria-label="Add a preview page by number"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              const n = Number(extra);
-              if (Number.isInteger(n) && n >= 1 && n <= pageCount && !value.includes(n)) toggle(n);
-              setExtra("");
-            }}
-          >
-            Add
-          </Button>
-        </div>
-      )}
-      <FieldDescription>Selected: {value.length ? value.join(", ") : "none"}</FieldDescription>
-      {error ? <FieldError>{error}</FieldError> : null}
-    </div>
   );
 }

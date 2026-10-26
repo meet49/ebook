@@ -61,8 +61,6 @@ export interface ProductDetail extends ProductSummary {
   benefits: string[];
   language: string;
   toc: TocEntry[];
-  /** Public sample PDF made of the chosen preview pages (original page numbers in `pages`). */
-  sample: { url: string; pages: number[] } | null;
   /** Same-category books that can be added at their combo price when buying this one. */
   addOns: ProductSummary[];
 }

@@ -59,9 +59,8 @@ sign-in link 30 min (72 h for the link in the purchase email).
 |---|---|---|
 | GET | `/products?q&category&sort&featured&page&pageSize` | Published only. `sort`: `featured` / `newest` / `price_asc` / `price_desc`. Returns `ProductSummary[]` |
 | GET | `/products/categories` | `{categories: string[]}` |
-| GET | `/products/:slug` | `ProductDetail`: description, benefits, TOC, `sample` (`{ url, pages }` or `null`), `addOns` (same-category books with a combo price) |
+| GET | `/products/:slug` | `ProductDetail`: description, benefits, TOC, `addOns` (same-category books with a combo price) |
 | GET | `/products/:slug/cover` | WebP, publicly cacheable |
-| GET | `/products/:slug/sample` | PDF of only the pages the admin chose as previews, stamped "SAMPLE" |
 
 Responses never include storage keys or commission settings.
 

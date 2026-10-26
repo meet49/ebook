@@ -175,7 +175,7 @@ revocable sessions and single-use email links.
 | Prefix | Auth | Purpose |
 |---|---|---|
 | `/auth` | public / session | register, login, logout, me, verify-email, forgot/reset password, magic link |
-| `/products` | public | published catalog, search, filters, detail, sample pages |
+| `/products` | public | published catalog, search, filters, detail (no book pages are public) |
 | `/checkout`, `/webhooks/razorpay` | optional session / signature | orders, verification, webhooks |
 | `/me` | customer | library, orders, progress, bookmarks |
 | `/reader` | customer + entitlement | page images, TOC |
@@ -209,8 +209,8 @@ microservices.
   (pdf-lib validates it; pdfjs-dist reads the page count, page size and bookmarks, which
   pre-fill the table of contents), so it is fast and light on memory. Personal copies are
   stamped with pdf-lib the first time a buyer opens the book and cached in private
-  storage per "page set" version; the public sample is a separate PDF of the preview
-  pages stamped "SAMPLE". Unfinished jobs resume at boot.
+  storage per "page set" version. No pages of a book are public before purchase.
+  Unfinished jobs resume at boot.
 - **Storage drivers.** `local` (development) and `s3` (any S3-compatible service). Both
   sit behind one interface, and storage keys never leave the API.
 - **Reader.** It uses the `page-flip` library (MIT) directly, not the `react-pageflip`

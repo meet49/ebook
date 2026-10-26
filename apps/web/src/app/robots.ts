@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        // Book covers and samples are served from the public products API; the rest of /api is not.
+        // Book covers are served from the public products API; the rest of /api is not.
         allow: ["/", "/affiliate/apply", "/api/v1/products/"],
         disallow: [
           "/api/",
