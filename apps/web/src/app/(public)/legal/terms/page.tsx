@@ -50,6 +50,10 @@ export default function TermsPage() {
       <ul>
         <li>Prices are shown in Indian Rupees (INR) on each eBook&apos;s page, and the amount you pay is shown at checkout before you pay.</li>
         <li>
+          Visitors outside India may see prices in US dollars (USD). These are charged in Indian Rupees at the day&apos;s
+          exchange rate, which is shown at checkout; your bank may add its own conversion fee.
+        </li>
+        <li>
           Payments are processed securely by Razorpay (UPI, cards, netbanking and wallets). We do not see or store your
           card or UPI details.
         </li>

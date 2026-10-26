@@ -47,7 +47,12 @@ export function ProductCard({ product, priority, className }: { product: Product
           </p>
         ) : null}
         <div className="mt-auto flex items-end justify-between gap-2 pt-2">
-          <Price pricePaise={product.pricePaise} effectivePricePaise={product.effectivePricePaise} discountPercent={product.discountPercent} />
+          <Price
+            pricePaise={product.pricePaise}
+            effectivePricePaise={product.effectivePricePaise}
+            discountPercent={product.discountPercent}
+            intlPriceCents={product.intlPriceCents}
+          />
           <span className="bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-full transition-colors">
             <ArrowUpRight className="size-4" aria-hidden />
             <span className="sr-only">{t.view}</span>

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Instrument_Serif, Noto_Sans_Devanagari } from "next/
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import { Providers } from "@/components/providers";
 import { getLocale } from "@/i18n/server";
+import { isInternationalVisitor } from "@/lib/region-server";
 import { getSiteConfig } from "@/lib/server-api";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
@@ -33,7 +34,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [locale, siteConfig] = await Promise.all([getLocale(), getSiteConfig()]);
+  const [locale, siteConfig, international] = await Promise.all([getLocale(), getSiteConfig(), isInternationalVisitor()]);
   return (
     <html
       lang={locale}
@@ -41,7 +42,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${devanagari.variable} ${serif.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <Providers locale={locale}>{children}</Providers>
+        <Providers locale={locale} international={international}>
+          {children}
+        </Providers>
         <GoogleAnalytics measurementId={siteConfig?.analytics.gaMeasurementId ?? null} />
       </body>
     </html>

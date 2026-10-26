@@ -39,12 +39,15 @@ type GuestValues = z.infer<typeof guestSchema>;
 export function CheckoutPanel({
   slug,
   amountPaise,
+  payLabel,
   addOnSlugs = [],
   onAddOnOwned,
 }: {
   slug: string;
-  /** The total shown to the buyer (from the server quote). */
+  /** The total charged in INR (from the server quote). */
   amountPaise: number;
+  /** Button text when prices are shown in another currency, e.g. "Pay $9 (₹757)". */
+  payLabel?: string;
   /** Same-category books added at their combo price. */
   addOnSlugs?: string[];
   /** Called when an added book turns out to be owned already, so it can be removed. */
@@ -117,7 +120,7 @@ export function CheckoutPanel({
   };
 
   const busy = stage !== "idle";
-  const label = stage === "idle" ? t.pay(formatINR(amountPaise)) : t.stage[stage];
+  const label = stage === "idle" ? (payLabel ?? t.pay(formatINR(amountPaise))) : t.stage[stage];
   const payClass = "h-12 w-full rounded-full text-base shadow-lg shadow-indigo-900/15";
 
   if (isPending) {

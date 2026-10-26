@@ -1,5 +1,7 @@
 import type { Types } from 'mongoose';
+import { intlComboCents, type DisplayCurrency } from '@ebook/shared';
 import { badRequest } from '../../lib/errors';
+import { centsToPaise, usdToInrRate } from '../../lib/fx';
 import { Entitlement } from '../../models/Entitlement';
 import { Order } from '../../models/Order';
 import { Product, type ProductDoc } from '../../models/Product';
@@ -11,14 +13,23 @@ export const MAX_ADD_ONS = 3;
 
 export interface PricedLine {
   product: ProductDoc;
+  /** INR (paise): what the book costs on its own and what is charged for it. */
   listPricePaise: number;
   pricePaise: number;
   combo: boolean;
+  /** What the buyer sees, in the display currency's minor unit (paise or cents). */
+  displayListMinor: number;
+  displayPriceMinor: number;
 }
 
 export interface PricedOrder {
   lines: PricedLine[];
+  /** Always charged in INR. */
   totalPaise: number;
+  currency: DisplayCurrency;
+  totalDisplayMinor: number;
+  /** INR per USD used, when the currency is USD. */
+  fxRate: number | null;
   /** When the post-purchase combo price for the main book expires (null if it does not apply). */
   offerExpiresAt: Date | null;
 }
@@ -64,7 +75,12 @@ function windowExpiry(product: ProductDoc, window: Map<string, Date>): Date | nu
  * when the buyer bought a same-category book in the last 24 hours. Each add-on must share a
  * category with the main book and costs its combo price.
  */
-export async function priceOrder(product: ProductDoc, addOnSlugs: string[], userId: Types.ObjectId | null): Promise<PricedOrder> {
+export async function priceOrder(
+  product: ProductDoc,
+  addOnSlugs: string[],
+  userId: Types.ObjectId | null,
+  opts: { international?: boolean } = {},
+): Promise<PricedOrder> {
   const slugs = [...new Set(addOnSlugs.map((s) => s.toLowerCase()))].filter((s) => s !== product.slug);
   if (slugs.length > MAX_ADD_ONS) throw badRequest(`You can add at most ${MAX_ADD_ONS} books to one order`);
 
@@ -78,11 +94,14 @@ export async function priceOrder(product: ProductDoc, addOnSlugs: string[], user
 
   const window = await comboWindow(userId);
   const expires = hasCombo(product) ? windowExpiry(product, window) : null;
+  const mainPrice = expires ? product.comboPricePaise! : product.effectivePricePaise;
   const main: PricedLine = {
     product,
     listPricePaise: product.effectivePricePaise,
-    pricePaise: expires ? product.comboPricePaise! : product.effectivePricePaise,
+    pricePaise: mainPrice,
     combo: Boolean(expires),
+    displayListMinor: product.effectivePricePaise,
+    displayPriceMinor: mainPrice,
   };
   // Keep the order the buyer chose.
   const extra = slugs.map((slug) => addOns.find((a) => a.slug === slug)!).map<PricedLine>((p) => ({
@@ -90,10 +109,61 @@ export async function priceOrder(product: ProductDoc, addOnSlugs: string[], user
     listPricePaise: p.effectivePricePaise,
     pricePaise: p.comboPricePaise!,
     combo: true,
+    displayListMinor: p.effectivePricePaise,
+    displayPriceMinor: p.comboPricePaise!,
   }));
 
-  const lines = [main, ...extra];
-  return { lines, totalPaise: lines.reduce((s, l) => s + l.pricePaise, 0), offerExpiresAt: expires };
+  let lines = [main, ...extra];
+  let currency: DisplayCurrency = 'INR';
+  let fxRate: number | null = null;
+  if (opts.international) {
+    const usd = await internationalLines(lines);
+    if (usd) {
+      lines = usd.lines;
+      fxRate = usd.fxRate;
+      currency = 'USD';
+    }
+  }
+  return {
+    lines,
+    totalPaise: lines.reduce((s, l) => s + l.pricePaise, 0),
+    currency,
+    totalDisplayMinor: lines.reduce((s, l) => s + l.displayPriceMinor, 0),
+    fxRate,
+    offerExpiresAt: expires,
+  };
+}
+
+/**
+ * Re-prices lines in USD for visitors outside India, charged in INR at today's rate. Only when
+ * every book has an international price and a rate is available; otherwise the INR prices stand.
+ */
+async function internationalLines(lines: PricedLine[]): Promise<{ lines: PricedLine[]; fxRate: number } | null> {
+  const usd = lines.map((l) => {
+    const p = l.product;
+    if (p.intlPriceCents == null) return null;
+    const combo = intlComboCents({
+      intlPriceCents: p.intlPriceCents,
+      intlComboPriceCents: p.intlComboPriceCents ?? null,
+      comboPricePaise: p.comboPricePaise ?? null,
+      effectivePricePaise: p.effectivePricePaise,
+    });
+    const price = l.combo ? combo : p.intlPriceCents;
+    return price == null ? null : { list: p.intlPriceCents, price };
+  });
+  if (usd.some((u) => u === null)) return null;
+  const rate = await usdToInrRate();
+  if (!rate) return null;
+  return {
+    fxRate: rate,
+    lines: lines.map((l, i) => ({
+      ...l,
+      listPricePaise: centsToPaise(usd[i]!.list, rate),
+      pricePaise: centsToPaise(usd[i]!.price, rate),
+      displayListMinor: usd[i]!.list,
+      displayPriceMinor: usd[i]!.price,
+    })),
+  };
 }
 
 /** Same-category books with a combo price that the user does not own yet. */

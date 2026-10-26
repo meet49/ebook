@@ -69,7 +69,7 @@ describe('buying books together', () => {
     expect(res.status).toBe(201);
     expect(res.body.amountPaise).toBe(14_900 + 9_900);
     expect(gw.orders.get(res.body.razorpayOrderId)!.amount).toBe(24_800);
-    expect(res.body.lines).toEqual([
+    expect(res.body.lines).toMatchObject([
       { title: 'Focus Basics', slug: 'focus-basics', listPricePaise: 14_900, pricePaise: 14_900, combo: false },
       { title: 'Focus Advanced', slug: 'focus-advanced', listPricePaise: 14_900, pricePaise: 9_900, combo: true },
     ]);

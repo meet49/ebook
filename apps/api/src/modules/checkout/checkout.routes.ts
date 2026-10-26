@@ -5,6 +5,7 @@ import { audit } from '../../lib/audit';
 import { HttpError, badRequest, notFound } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import { getRazorpayCredentials } from '../../lib/payments/config';
+import { isInternational } from '../../lib/region';
 import { getGateway, paymentsMode } from '../../lib/payments/gateway';
 import { verifyCheckoutSignature } from '../../lib/payments/signature';
 import { sensitiveLimiter } from '../../middleware/rateLimit';
@@ -81,7 +82,7 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
   }
 
   // Prices, combo eligibility and commission always come from the server, never the browser.
-  const priced = await priceOrder(product, input.addOnSlugs, user._id);
+  const priced = await priceOrder(product, input.addOnSlugs, user._id, { international: isInternational(req) });
   const extras = priced.lines.slice(1).map((l) => l.product);
   if (extras.length) {
     const owned = await Entitlement.findOne({ userId: user._id, productId: { $in: extras.map((p) => p._id) }, status: 'active' });
@@ -120,6 +121,7 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
       listPricePaise: l.listPricePaise,
       pricePaise: l.pricePaise,
       combo: l.combo,
+      displayPriceMinor: l.displayPriceMinor,
       commissionRule: l.product.affiliate?.enabled
         ? { type: l.product.affiliate.type ?? 'percent', value: l.product.affiliate.value ?? 0 }
         : null,
@@ -127,16 +129,18 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
     customerSnapshot: { name: user.name, email: user.email },
     amountPaise,
     currency: 'INR',
+    display: { currency: priced.currency, totalMinor: priced.totalDisplayMinor, fxRate: priced.fxRate },
     razorpay: { orderId: rzpOrder.id },
     attribution,
   });
-  await audit({ action: 'order.created', entityType: 'Order', entityId: order._id, actorId: user._id, meta: { attribution: attribution.type, books: priced.lines.length, combo: priced.lines.some((l) => l.combo) }, req });
+  await audit({ action: 'order.created', entityType: 'Order', entityId: order._id, actorId: user._id, meta: { attribution: attribution.type, books: priced.lines.length, combo: priced.lines.some((l) => l.combo), display: priced.currency }, req });
 
   res.status(201).json({
     orderNumber,
     razorpayOrderId: rzpOrder.id,
     amountPaise,
     currency: 'INR',
+    display: { currency: priced.currency, totalMinor: priced.totalDisplayMinor, fxRate: priced.fxRate },
     keyId: gw.keyId,
     product: { title: product.title, slug: product.slug },
     lines: priced.lines.map(lineOf),
@@ -145,7 +149,15 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
 });
 
 function lineOf(l: PricedOrder['lines'][number]) {
-  return { title: l.product.title, slug: l.product.slug, listPricePaise: l.listPricePaise, pricePaise: l.pricePaise, combo: l.combo };
+  return {
+    title: l.product.title,
+    slug: l.product.slug,
+    listPricePaise: l.listPricePaise,
+    pricePaise: l.pricePaise,
+    combo: l.combo,
+    displayListMinor: l.displayListMinor,
+    displayPriceMinor: l.displayPriceMinor,
+  };
 }
 
 const quoteSchema = z.object({
@@ -166,12 +178,16 @@ checkoutRouter.post('/quote', async (req, res) => {
   if (!product) throw notFound('This eBook is not available');
   const userId = req.auth?.user._id ?? (input.fromOrder ? await recentBuyerOf(input.fromOrder) : null);
 
-  const priced = await priceOrder(product, input.addOnSlugs, userId);
+  const priced = await priceOrder(product, input.addOnSlugs, userId, { international: isInternational(req) });
   const addOns = await comboCandidates(product.categories, [product._id], userId);
   const quote: CheckoutQuote = {
     lines: priced.lines.map(lineOf),
     totalPaise: priced.totalPaise,
     savingsPaise: priced.lines.reduce((sum, l) => sum + (l.listPricePaise - l.pricePaise), 0),
+    currency: priced.currency,
+    totalDisplayMinor: priced.totalDisplayMinor,
+    savingsDisplayMinor: priced.lines.reduce((sum, l) => sum + (l.displayListMinor - l.displayPriceMinor), 0),
+    fxRate: priced.fxRate,
     addOns: addOns.map(toSummary),
     offerExpiresAt: priced.offerExpiresAt?.toISOString() ?? null,
   };

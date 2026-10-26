@@ -23,6 +23,8 @@ const orderSchema = new Schema(
           listPricePaise: { type: Number, required: true },
           pricePaise: { type: Number, required: true },
           combo: { type: Boolean, default: false },
+          /** What the buyer was shown for this book, in the display currency's minor unit. */
+          displayPriceMinor: { type: Number, default: null },
           /** This book's commission rule at order time; null when it pays no commission. */
           commissionRule: {
             type: new Schema({ type: { type: String, enum: ['percent', 'fixed'] }, value: Number }, { _id: false }),
@@ -36,6 +38,13 @@ const orderSchema = new Schema(
 
     amountPaise: { type: Number, required: true },
     currency: { type: String, default: 'INR' },
+    /** Prices as shown to the buyer. International orders show USD but are always charged in INR. */
+    display: {
+      currency: { type: String, enum: ['INR', 'USD'], default: 'INR' },
+      totalMinor: { type: Number, default: null },
+      /** INR per USD used for the conversion. */
+      fxRate: { type: Number, default: null },
+    },
     status: { type: String, enum: ORDER_STATUSES, default: 'created' },
 
     razorpay: {

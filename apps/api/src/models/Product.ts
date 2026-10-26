@@ -22,6 +22,10 @@ const productSchema = new Schema(
     salePricePaise: { type: Number, default: null, validate: integerPaise },
     /** Price when bought together with a same-category book (or soon after buying one). Null: never a combo. */
     comboPricePaise: { type: Number, default: null, validate: integerPaise },
+    /** Price for visitors outside India, in US cents (charged in INR at the day's rate). Null: INR price everywhere. */
+    intlPriceCents: { type: Number, default: null, validate: integerPaise },
+    /** International combo price in US cents; null derives it from the INR combo discount. */
+    intlComboPriceCents: { type: Number, default: null, validate: integerPaise },
     /** Derived from pricePaise/salePricePaise on every save; used for sorting and checkout. */
     effectivePricePaise: { type: Number, default: 0 },
     currency: { type: String, default: 'INR', enum: ['INR'] },
@@ -74,6 +78,9 @@ productSchema.pre('validate', function () {
   }
   if (this.comboPricePaise != null && this.comboPricePaise >= this.effectivePricePaise) {
     this.invalidate('comboPricePaise', 'Combo price must be lower than the selling price');
+  }
+  if (this.intlComboPriceCents != null && (this.intlPriceCents == null || this.intlComboPriceCents >= this.intlPriceCents)) {
+    this.invalidate('intlComboPriceCents', 'Must be lower than the international price');
   }
   if (this.affiliate?.type === 'percent' && (this.affiliate.value ?? 0) > 10_000) {
     this.invalidate('affiliate.value', 'Commission cannot exceed 100%');

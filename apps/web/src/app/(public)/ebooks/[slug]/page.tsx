@@ -19,7 +19,7 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
-import { formatINR } from "@ebook/shared";
+import { formatINR, formatUSD, intlComboCents } from "@ebook/shared";
 import { BookCover } from "@/components/products/book-cover";
 import { Price } from "@/components/products/price";
 import { ProductGrid } from "@/components/products/product-card";
@@ -27,6 +27,7 @@ import { SamplePages } from "@/components/products/sample-pages";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { getMessages } from "@/i18n/server";
+import { isInternationalVisitor } from "@/lib/region-server";
 import { absoluteUrl, jsonLd, organizationLd } from "@/lib/seo";
 import { getCatalog, getProduct } from "@/lib/server-api";
 
@@ -65,6 +66,8 @@ export default async function ProductPage({ params }: PageProps<"/ebooks/[slug]"
   const messages = await getMessages();
   const t = messages.product;
   const tc = messages.common;
+  // Visitors outside India see the international (USD) price where the book has one.
+  const intl = (await isInternationalVisitor()) && product.intlPriceCents != null;
 
   // Structured data: lets Google show the book with its price and availability in results.
   const productUrl = absoluteUrl(`/ebooks/${product.slug}`);
@@ -208,8 +211,9 @@ export default async function ProductPage({ params }: PageProps<"/ebooks/[slug]"
                 pricePaise={product.pricePaise}
                 effectivePricePaise={product.effectivePricePaise}
                 discountPercent={product.discountPercent}
+                intlPriceCents={product.intlPriceCents}
               />
-              <p className="text-muted-foreground mt-1.5 text-xs">{t.oneTimePrice}</p>
+              <p className="text-muted-foreground mt-1.5 text-xs">{intl ? t.intlNote : t.oneTimePrice}</p>
               <Button asChild size="lg" className="mt-5 h-12 w-full rounded-full text-base shadow-lg shadow-indigo-900/15">
                 <Link href={checkoutHref}>
                   <Lock aria-hidden /> {t.buyNow}
@@ -250,7 +254,21 @@ export default async function ProductPage({ params }: PageProps<"/ebooks/[slug]"
                 <ul className="mt-5 space-y-3">
                   {product.addOns.map((addOn) => {
                     const combo = addOn.comboPricePaise ?? addOn.effectivePricePaise;
-                    const save = addOn.effectivePricePaise - combo;
+                    const usdCombo = intl && addOn.intlPriceCents != null ? intlComboCents(addOn) : null;
+                    const prices =
+                      usdCombo != null
+                        ? {
+                            price: formatUSD(usdCombo),
+                            list: formatUSD(addOn.intlPriceCents!),
+                            save: formatUSD(addOn.intlPriceCents! - usdCombo),
+                            both: formatUSD(product.intlPriceCents! + usdCombo),
+                          }
+                        : {
+                            price: formatINR(combo),
+                            list: formatINR(addOn.effectivePricePaise),
+                            save: formatINR(addOn.effectivePricePaise - combo),
+                            both: formatINR(product.effectivePricePaise + combo),
+                          };
                     return (
                       <li key={addOn.id} className="bg-card flex flex-col gap-4 rounded-2xl border p-4 sm:flex-row sm:items-center">
                         <div className="flex items-center gap-2">
@@ -266,13 +284,13 @@ export default async function ProductPage({ params }: PageProps<"/ebooks/[slug]"
                           </Link>
                           <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-sm tabular-nums">
                             <span className="text-muted-foreground text-xs">{t.buyTogether.comboPrice}</span>
-                            <span className="font-semibold">{formatINR(combo)}</span>
-                            <span className="text-muted-foreground text-xs line-through">{formatINR(addOn.effectivePricePaise)}</span>
-                            <span className="text-success text-xs font-semibold">{t.buyTogether.save(formatINR(save))}</span>
+                            <span className="font-semibold">{prices.price}</span>
+                            <span className="text-muted-foreground text-xs line-through">{prices.list}</span>
+                            <span className="text-success text-xs font-semibold">{t.buyTogether.save(prices.save)}</span>
                           </p>
                         </div>
                         <Button asChild className="shrink-0 rounded-full">
-                          <Link href={`/checkout/${product.slug}?add=${addOn.slug}`}>{t.buyTogether.both(formatINR(product.effectivePricePaise + combo))}</Link>
+                          <Link href={`/checkout/${product.slug}?add=${addOn.slug}`}>{t.buyTogether.both(prices.both)}</Link>
                         </Button>
                       </li>
                     );
@@ -357,7 +375,12 @@ export default async function ProductPage({ params }: PageProps<"/ebooks/[slug]"
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <div className="min-w-0">
             <p className="text-muted-foreground truncate text-xs">{product.title}</p>
-            <Price pricePaise={product.pricePaise} effectivePricePaise={product.effectivePricePaise} discountPercent={product.discountPercent} />
+            <Price
+              pricePaise={product.pricePaise}
+              effectivePricePaise={product.effectivePricePaise}
+              discountPercent={product.discountPercent}
+              intlPriceCents={product.intlPriceCents}
+            />
           </div>
           <Button asChild size="lg" className="shrink-0 rounded-full px-6">
             <Link href={checkoutHref}>{t.buyNow}</Link>

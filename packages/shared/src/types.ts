@@ -46,6 +46,10 @@ export interface ProductSummary {
   discountPercent: number;
   /** Price when bought together with another book of the same category; null when not offered. */
   comboPricePaise: number | null;
+  /** Price for visitors outside India, in US cents; null shows the INR price everywhere. */
+  intlPriceCents: number | null;
+  /** International combo price in US cents (null: derived from the INR combo discount). */
+  intlComboPriceCents: number | null;
   featured: boolean;
   coverUrl: string | null;
   pageCount: number;
@@ -79,6 +83,8 @@ export interface AdminProduct {
   salePricePaise: number | null;
   effectivePricePaise: number;
   comboPricePaise: number | null;
+  intlPriceCents: number | null;
+  intlComboPriceCents: number | null;
   status: ProductStatus;
   featured: boolean;
   publishedAt: string | null;
@@ -107,11 +113,24 @@ export interface OrderLine {
   combo: boolean;
 }
 
+/** An order line with what to show the buyer (in the display currency's minor unit). */
+export interface QuoteLine extends OrderLine {
+  displayListMinor: number;
+  displayPriceMinor: number;
+}
+
 /** Server-calculated price breakdown shown before payment. */
 export interface CheckoutQuote {
-  lines: OrderLine[];
+  lines: QuoteLine[];
+  /** Always charged in INR (paise). */
   totalPaise: number;
   savingsPaise: number;
+  /** What the buyer sees prices in: USD for international visitors when every book has a USD price. */
+  currency: 'INR' | 'USD';
+  totalDisplayMinor: number;
+  savingsDisplayMinor: number;
+  /** INR per USD used to convert, when the currency is USD. */
+  fxRate: number | null;
   /** Books that can still be added to this order at their combo price. */
   addOns: ProductSummary[];
   /** Set when a post-purchase combo price applies to the main book. */

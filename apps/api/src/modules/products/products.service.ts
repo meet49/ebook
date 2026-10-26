@@ -38,6 +38,8 @@ export function toSummary(p: ProductDoc): ProductSummary {
     effectivePricePaise: p.effectivePricePaise,
     discountPercent: discountPercent(p),
     comboPricePaise: p.comboPricePaise ?? null,
+    intlPriceCents: p.intlPriceCents ?? null,
+    intlComboPriceCents: p.intlComboPriceCents ?? null,
     featured: p.featured,
     coverUrl: publicCoverUrl(p),
     pageCount: p.pageCount,
@@ -87,6 +89,8 @@ export async function toAdmin(p: ProductDoc): Promise<AdminProduct> {
     salePricePaise: p.salePricePaise ?? null,
     effectivePricePaise: p.effectivePricePaise,
     comboPricePaise: p.comboPricePaise ?? null,
+    intlPriceCents: p.intlPriceCents ?? null,
+    intlComboPriceCents: p.intlComboPriceCents ?? null,
     status: p.status,
     featured: p.featured,
     publishedAt: p.publishedAt?.toISOString() ?? null,
@@ -146,6 +150,8 @@ export function applyInput(p: ProductDoc, input: ProductInputParsed): void {
   p.pricePaise = input.pricePaise;
   p.salePricePaise = input.salePricePaise;
   p.comboPricePaise = input.comboPricePaise;
+  p.intlPriceCents = input.intlPriceCents;
+  p.intlComboPriceCents = input.intlComboPriceCents;
   p.featured = input.featured;
   p.set('affiliate', input.affiliate);
   p.previewPages = [...new Set(input.previewPages)].sort((a, b) => a - b);

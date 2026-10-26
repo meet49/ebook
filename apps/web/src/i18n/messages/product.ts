@@ -51,6 +51,7 @@ const en = {
     save: (amount: string) => `Save ${amount}`,
     comboPrice: "Combo price",
   },
+  intlNote: "Price in US dollars. Charged in Indian Rupees at today's rate.",
 };
 
 export type ProductMessages = typeof en;
@@ -107,6 +108,7 @@ const hi: ProductMessages = {
     save: (amount: string) => `${amount} बचाएँ`,
     comboPrice: "कॉम्बो कीमत",
   },
+  intlNote: "कीमत US डॉलर में। पेमेंट आज के रेट पर भारतीय रुपये में होगा।",
 };
 
 export const product = { en, hi };

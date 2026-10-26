@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { BookOpen, ChevronRight, Plus } from "lucide-react";
 import { useDeferredValue, useState } from "react";
-import { formatINR, type ProductStatus } from "@ebook/shared";
+import { formatINR, formatUSD, type ProductStatus } from "@ebook/shared";
 import { ProductRowActions } from "@/components/admin/product-row-actions";
 import { ProductStatusBadge } from "@/components/admin/product-status";
 import { FilterPills, ListCard, SearchField } from "@/components/dashboard/list-ui";
@@ -149,6 +149,7 @@ export default function AdminProductsPage() {
                       <span className="font-medium">{formatINR(p.effectivePricePaise)}</span>
                       {p.salePricePaise != null && <span className="text-muted-foreground ml-1 text-xs line-through">{formatINR(p.pricePaise)}</span>}
                       {p.comboPricePaise != null && <span className="text-primary block text-xs">Combo {formatINR(p.comboPricePaise)}</span>}
+                      {p.intlPriceCents != null && <span className="text-muted-foreground block text-xs">Intl {formatUSD(p.intlPriceCents)}</span>}
                     </TableCell>
                     <TableCell className="text-muted-foreground tabular-nums">{p.pageCount || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{dateFmt.format(new Date(p.updatedAt))}</TableCell>

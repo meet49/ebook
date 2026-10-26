@@ -55,6 +55,14 @@ const formSchema = z
       .string()
       .trim()
       .refine((v) => v === "" || money.test(v), "Enter an amount like 99 or leave empty"),
+    intlPrice: z
+      .string()
+      .trim()
+      .refine((v) => v === "" || money.test(v), "Enter an amount like 9 or 9.99, or leave empty"),
+    intlComboPrice: z
+      .string()
+      .trim()
+      .refine((v) => v === "" || money.test(v), "Enter an amount like 4.99, or leave empty"),
     featured: z.boolean(),
     affiliateEnabled: z.boolean(),
     commissionType: z.enum(["percent", "fixed"]),
@@ -68,6 +76,15 @@ const formSchema = z
     if (price < 100) ctx.addIssue({ code: "custom", path: ["price"], message: "Price must be at least ₹1" });
     const sale = v.salePrice ? rupeesToPaise(v.salePrice) : null;
     if (sale !== null && sale >= price) ctx.addIssue({ code: "custom", path: ["salePrice"], message: "Must be lower than the regular price" });
+    if (v.intlPrice && money.test(v.intlPrice)) {
+      const intl = rupeesToPaise(v.intlPrice); // dollars → cents, same 2-decimal rule
+      if (intl < 100) ctx.addIssue({ code: "custom", path: ["intlPrice"], message: "Must be at least $1" });
+      if (v.intlComboPrice && money.test(v.intlComboPrice) && rupeesToPaise(v.intlComboPrice) >= intl) {
+        ctx.addIssue({ code: "custom", path: ["intlComboPrice"], message: "Must be lower than the international price" });
+      }
+    } else if (v.intlComboPrice) {
+      ctx.addIssue({ code: "custom", path: ["intlComboPrice"], message: "Set the international price first" });
+    }
     if (v.comboPrice && money.test(v.comboPrice)) {
       const combo = rupeesToPaise(v.comboPrice);
       if (combo < 100) ctx.addIssue({ code: "custom", path: ["comboPrice"], message: "Combo price must be at least ₹1" });
@@ -95,6 +112,8 @@ export function productToFormValues(p?: AdminProduct): FormValues {
     price: p ? paiseToRupeesString(p.pricePaise).replace(/\.00$/, "") : "",
     salePrice: p?.salePricePaise != null ? paiseToRupeesString(p.salePricePaise).replace(/\.00$/, "") : "",
     comboPrice: p?.comboPricePaise != null ? paiseToRupeesString(p.comboPricePaise).replace(/\.00$/, "") : "",
+    intlPrice: p?.intlPriceCents != null ? paiseToRupeesString(p.intlPriceCents).replace(/\.00$/, "") : "",
+    intlComboPrice: p?.intlComboPriceCents != null ? paiseToRupeesString(p.intlComboPriceCents).replace(/\.00$/, "") : "",
     featured: p?.featured ?? false,
     affiliateEnabled: p?.affiliate.enabled ?? true,
     commissionType: p?.affiliate.type ?? "percent",
@@ -118,6 +137,8 @@ function toInput(v: z.output<typeof formSchema>): ProductInput {
     pricePaise: rupeesToPaise(v.price),
     salePricePaise: v.salePrice ? rupeesToPaise(v.salePrice) : null,
     comboPricePaise: v.comboPrice ? rupeesToPaise(v.comboPrice) : null,
+    intlPriceCents: v.intlPrice ? rupeesToPaise(v.intlPrice) : null,
+    intlComboPriceCents: v.intlComboPrice ? rupeesToPaise(v.intlComboPrice) : null,
     featured: v.featured,
     affiliate: { enabled: v.affiliateEnabled, type: v.commissionType, value: rupeesToPaise(v.commissionValue) },
     previewPages: v.previewPages,
@@ -174,6 +195,8 @@ export function ProductForm({
           pricePaise: "price",
           salePricePaise: "salePrice",
           comboPricePaise: "comboPrice",
+          intlPriceCents: "intlPrice",
+          intlComboPriceCents: "intlComboPrice",
           "affiliate.value": "commissionValue",
           benefits: "benefitsText",
           categories: "categoriesText",
@@ -255,6 +278,26 @@ export function ProductForm({
             description="Optional. Charged when this book is added to another book of the same category, or bought within 24 hours of buying one. Leave empty to never offer it as a combo."
           >
             {({ field, id, invalid }) => <Input id={id} inputMode="decimal" placeholder="99" aria-invalid={invalid} {...field} />}
+          </FormField>
+        </div>
+        <div className="mt-6 space-y-1 border-t pt-5">
+          <p className="text-sm font-semibold">Outside India (USD)</p>
+          <p className="text-muted-foreground text-sm">
+            Visitors outside India see this price in dollars. Payment is still taken in INR at the day&apos;s exchange rate. Leave
+            empty to show the INR price to everyone.
+          </p>
+        </div>
+        <div className="mt-4 grid gap-5 sm:grid-cols-2">
+          <FormField control={form.control} name="intlPrice" label="International price ($)" description="Optional, e.g. 9 or 9.99.">
+            {({ field, id, invalid }) => <Input id={id} inputMode="decimal" placeholder="9" aria-invalid={invalid} {...field} />}
+          </FormField>
+          <FormField
+            control={form.control}
+            name="intlComboPrice"
+            label="International combo price ($)"
+            description="Optional. Leave empty to apply the same discount as the INR combo price."
+          >
+            {({ field, id, invalid }) => <Input id={id} inputMode="decimal" placeholder="4.99" aria-invalid={invalid} {...field} />}
           </FormField>
         </div>
       </Section>

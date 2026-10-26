@@ -48,6 +48,10 @@ export const productInputSchema = z
      * post-purchase offer window. Null means the book is never offered as a combo.
      */
     comboPricePaise: paise.min(MIN_PRICE_PAISE, 'Combo price must be at least ₹1').nullable().default(null),
+    /** Price shown and charged (converted to INR) for visitors outside India, in US cents. */
+    intlPriceCents: paise.min(100, 'International price must be at least $1').max(100_000, 'International price must be at most $1,000').nullable().default(null),
+    /** Optional international combo price in US cents; otherwise the INR combo discount is applied. */
+    intlComboPriceCents: paise.min(100, 'International combo price must be at least $1').nullable().default(null),
     featured: z.boolean().default(false),
     affiliate: z
       .object({
@@ -71,6 +75,9 @@ export const productInputSchema = z
       ctx.addIssue({ code: 'custom', path: ['affiliate', 'value'], message: 'Commission cannot exceed 100%' });
     }
     const charged = p.salePricePaise ?? p.pricePaise;
+    if (p.intlComboPriceCents != null && (p.intlPriceCents == null || p.intlComboPriceCents >= p.intlPriceCents)) {
+      ctx.addIssue({ code: 'custom', path: ['intlComboPriceCents'], message: 'Must be lower than the international price' });
+    }
     if (p.comboPricePaise != null && p.comboPricePaise >= charged) {
       ctx.addIssue({ code: 'custom', path: ['comboPricePaise'], message: 'Combo price must be lower than the selling price' });
     }

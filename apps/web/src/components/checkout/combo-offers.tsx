@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { Sparkles, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
-import { formatINR, type ProductSummary } from "@ebook/shared";
+import type { ProductSummary } from "@ebook/shared";
 import { BookCover } from "@/components/products/book-cover";
 import { Button } from "@/components/ui/button";
 import { useMessages } from "@/i18n/client";
+import { displayCombo } from "@/lib/region";
+import { useInternational } from "@/lib/region-client";
 import { cn } from "@/lib/utils";
 
 /** "in 23 h 10 min", refreshed every minute; null once the offer has ended. */
@@ -44,6 +46,7 @@ export function ComboOffers({
   const t = useMessages().checkout.offers;
   const tc = useMessages().common;
   const left = useTimeLeft(expiresAt);
+  const international = useInternational();
   if (!items.length || !left) return null;
 
   return (
@@ -66,18 +69,19 @@ export function ComboOffers({
 
       <ul className={cn("mt-5 grid gap-3", !compact && "sm:grid-cols-2 lg:grid-cols-3")}>
         {items.map((p) => {
-          const combo = p.comboPricePaise ?? p.effectivePricePaise;
+          const combo = displayCombo(p, international);
+          if (!combo) return null;
           return (
             <li key={p.id} className="bg-card flex gap-3 rounded-2xl border p-3">
               <BookCover src={p.coverUrl} title={p.title} alt={tc.book.coverOf(p.title)} className="w-14 shrink-0" sizes="56px" />
               <div className="flex min-w-0 flex-1 flex-col">
                 <p className="line-clamp-2 text-sm leading-snug font-medium">{p.title}</p>
                 <p className="mt-1 text-sm tabular-nums">
-                  <span className="font-semibold">{formatINR(combo)}</span>{" "}
-                  <span className="text-muted-foreground text-xs line-through">{formatINR(p.effectivePricePaise)}</span>
+                  <span className="font-semibold">{combo.price}</span>{" "}
+                  <span className="text-muted-foreground text-xs line-through">{combo.list}</span>
                 </p>
                 <Button asChild size="sm" className="mt-auto w-fit rounded-full">
-                  <Link href={`/checkout/${p.slug}${fromOrder ? `?from=${encodeURIComponent(fromOrder)}` : ""}`}>{t.cta(formatINR(combo))}</Link>
+                  <Link href={`/checkout/${p.slug}${fromOrder ? `?from=${encodeURIComponent(fromOrder)}` : ""}`}>{t.cta(combo.price)}</Link>
                 </Button>
               </div>
             </li>

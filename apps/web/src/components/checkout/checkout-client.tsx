@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Check, Fingerprint, MonitorSmartphone, Plus, Sparkles, Timer, Zap } from "lucide-react";
 import { useState } from "react";
-import { formatINR, type CheckoutQuote, type ProductDetail, type ProductSummary } from "@ebook/shared";
+import { formatINR, formatMoney, type CheckoutQuote, type ProductDetail, type ProductSummary, type QuoteLine } from "@ebook/shared";
 import { CheckoutPanel } from "@/components/checkout/checkout-panel";
 import { useTimeLeft } from "@/components/checkout/combo-offers";
 import { BookCover } from "@/components/products/book-cover";
@@ -11,6 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMessages } from "@/i18n/client";
 import { api } from "@/lib/api";
 import { useMe } from "@/lib/auth";
+import { displayCombo } from "@/lib/region";
+import { useInternational } from "@/lib/region-client";
 import { cn } from "@/lib/utils";
 
 const MAX_ADD_ONS = 3;
@@ -24,6 +26,7 @@ export function CheckoutClient({ product, initialAddOns, fromOrder }: { product:
   const t = messages.checkout;
   const tc = messages.common;
   const { data: user, isPending: userPending } = useMe();
+  const international = useInternational();
   const [addOns, setAddOns] = useState<string[]>(() => initialAddOns.slice(0, MAX_ADD_ONS));
 
   const { data: quote, isPlaceholderData } = useQuery({
@@ -40,14 +43,28 @@ export function CheckoutClient({ product, initialAddOns, fromOrder }: { product:
   const toggle = (slug: string) =>
     setAddOns((cur) => (cur.includes(slug) ? cur.filter((s) => s !== slug) : cur.length >= MAX_ADD_ONS ? cur : [...cur, slug]));
 
+  // Until the quote arrives, show the book's own price (USD abroad when it has one).
+  const usdFallback = international && product.intlPriceCents != null;
+  const fallbackLine: QuoteLine = {
+    title: product.title,
+    slug: product.slug,
+    listPricePaise: product.effectivePricePaise,
+    pricePaise: product.effectivePricePaise,
+    combo: false,
+    displayListMinor: usdFallback ? product.intlPriceCents! : product.effectivePricePaise,
+    displayPriceMinor: usdFallback ? product.intlPriceCents! : product.effectivePricePaise,
+  };
+  // Charged in INR; shown in the quote's currency (USD for international visitors).
+  const currency = quote?.currency ?? (usdFallback ? "USD" : "INR");
+  const money = (minor: number) => formatMoney(minor, currency);
   const total = quote?.totalPaise ?? product.effectivePricePaise;
-  const lines = quote?.lines ?? [
-    { title: product.title, slug: product.slug, listPricePaise: product.effectivePricePaise, pricePaise: product.effectivePricePaise, combo: false },
-  ];
-  const listTotal = lines.reduce((s, l) => s + l.listPricePaise, 0);
-  const regularTotal = product.pricePaise - product.effectivePricePaise + listTotal;
-  const saleSavings = product.pricePaise - product.effectivePricePaise;
-  const comboSavings = quote?.savingsPaise ?? 0;
+  const totalDisplay = quote?.totalDisplayMinor ?? fallbackLine.displayPriceMinor;
+  const lines = quote?.lines ?? [fallbackLine];
+  const listTotal = lines.reduce((s, l) => s + l.displayListMinor, 0);
+  // INR shows the book's regular (pre-sale) price struck through; USD has no sale price.
+  const regularTotal = currency === "INR" ? product.pricePaise - product.effectivePricePaise + listTotal : listTotal;
+  const saleSavings = currency === "INR" ? product.pricePaise - product.effectivePricePaise : 0;
+  const comboSavings = quote?.savingsDisplayMinor ?? 0;
   const left = useTimeLeft(quote?.offerExpiresAt ?? null);
 
   const included = [
@@ -96,8 +113,10 @@ export function CheckoutClient({ product, initialAddOns, fromOrder }: { product:
                   )}
                 </dt>
                 <dd className="shrink-0 text-right tabular-nums">
-                  {l.pricePaise < l.listPricePaise && <span className="text-muted-foreground mr-1.5 text-xs line-through">{formatINR(l.listPricePaise)}</span>}
-                  {formatINR(l.pricePaise)}
+                  {l.displayPriceMinor < l.displayListMinor && (
+                    <span className="text-muted-foreground mr-1.5 text-xs line-through">{money(l.displayListMinor)}</span>
+                  )}
+                  {money(l.displayPriceMinor)}
                 </dd>
               </div>
             ))}
@@ -112,11 +131,14 @@ export function CheckoutClient({ product, initialAddOns, fromOrder }: { product:
             <div className="flex items-baseline justify-between gap-4 border-t border-dashed pt-3">
               <dt className="font-semibold">{t.total}</dt>
               <dd className="text-2xl font-semibold tabular-nums">
-                {regularTotal > total && <span className="text-muted-foreground mr-2 text-sm font-normal line-through">{formatINR(regularTotal)}</span>}
-                {formatINR(total)}
+                {regularTotal > totalDisplay && <span className="text-muted-foreground mr-2 text-sm font-normal line-through">{money(regularTotal)}</span>}
+                {money(totalDisplay)}
               </dd>
             </div>
-            {comboSavings > 0 && <p className="text-success text-right text-xs font-semibold">{t.combo.youSave(formatINR(comboSavings))}</p>}
+            {comboSavings > 0 && <p className="text-success text-right text-xs font-semibold">{t.combo.youSave(money(comboSavings))}</p>}
+            {currency === "USD" && quote?.fxRate ? (
+              <p className="text-muted-foreground bg-muted/50 rounded-xl p-3 text-xs leading-relaxed">{t.intl.charged(formatINR(total), quote.fxRate.toFixed(2))}</p>
+            ) : null}
           </dl>
 
           <div className="bg-muted/40 border-t p-5 sm:px-6">
@@ -162,12 +184,13 @@ export function CheckoutClient({ product, initialAddOns, fromOrder }: { product:
               {t.details}
             </h2>
             <span className="bg-success/10 text-success inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium">
-              <Check className="size-3.5" aria-hidden /> {t.paymentMethods}
+              <Check className="size-3.5" aria-hidden /> {currency === "USD" ? t.intl.methods : t.paymentMethods}
             </span>
           </div>
           <CheckoutPanel
             slug={product.slug}
             amountPaise={total}
+            payLabel={currency === "USD" ? t.intl.payLabel(money(totalDisplay), formatINR(total)) : undefined}
             addOnSlugs={addOns.filter((s) => offered.has(s))}
             onAddOnOwned={(slug) => setAddOns((cur) => cur.filter((s) => s !== slug))}
           />
@@ -180,7 +203,8 @@ export function CheckoutClient({ product, initialAddOns, fromOrder }: { product:
 function AddOnRow({ product: p, selected, disabled, onToggle }: { product: ProductSummary; selected: boolean; disabled: boolean; onToggle: () => void }) {
   const messages = useMessages();
   const t = messages.checkout.combo;
-  const combo = p.comboPricePaise ?? p.effectivePricePaise;
+  const combo = displayCombo(p, useInternational());
+  if (!combo) return null;
   return (
     <li>
       <button
@@ -197,9 +221,9 @@ function AddOnRow({ product: p, selected, disabled, onToggle }: { product: Produ
         <span className="min-w-0 flex-1">
           <span className="line-clamp-2 text-sm leading-snug font-medium">{p.title}</span>
           <span className="mt-1 flex flex-wrap items-baseline gap-x-2 text-sm tabular-nums">
-            <span className="font-semibold">{formatINR(combo)}</span>
-            <span className="text-muted-foreground text-xs line-through">{formatINR(p.effectivePricePaise)}</span>
-            <span className="text-success text-xs font-semibold">{t.save(formatINR(p.effectivePricePaise - combo))}</span>
+            <span className="font-semibold">{combo.price}</span>
+            <span className="text-muted-foreground text-xs line-through">{combo.list}</span>
+            <span className="text-success text-xs font-semibold">{t.save(combo.save)}</span>
           </span>
         </span>
         <span

@@ -103,6 +103,11 @@ const en = {
     endsIn: (hours: number, minutes: number) => (hours > 0 ? `in ${hours} h ${minutes} min` : `in ${minutes} min`),
     endsSoon: "very soon",
   },
+  intl: {
+    charged: (inr: string, rate: string) => `You'll be charged ${inr} in Indian Rupees at today's rate (1 USD = ₹${rate}). Your bank may add a small conversion fee.`,
+    payLabel: (usd: string, inr: string) => `Pay ${usd} (${inr})`,
+    methods: "International debit & credit cards",
+  },
 };
 
 export type CheckoutMessages = typeof en;
@@ -210,6 +215,11 @@ const hi: CheckoutMessages = {
     cta: (price: string) => `${price} में लें`,
     endsIn: (hours: number, minutes: number) => (hours > 0 ? `${hours} घंटे ${minutes} मिनट में` : `${minutes} मिनट में`),
     endsSoon: "जल्द ही",
+  },
+  intl: {
+    charged: (inr: string, rate: string) => `आपसे आज के रेट पर भारतीय रुपये में ${inr} लिए जाएँगे (1 USD = ₹${rate})। आपका बैंक थोड़ी कन्वर्ज़न फ़ीस ले सकता है।`,
+    payLabel: (usd: string, inr: string) => `${usd} (${inr}) का पेमेंट करें`,
+    methods: "इंटरनेशनल डेबिट और क्रेडिट कार्ड",
   },
 };
 

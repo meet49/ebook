@@ -1,36 +1,38 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { COUNTRY_COOKIE } from "@/lib/region";
 
 const SESSION_COOKIE = process.env.SESSION_COOKIE_NAME ?? "ebook_sid";
 
+/** Pages that need a session; signed-out visitors are sent to the right sign-in screen. */
+const PROTECTED = [/^\/library(\/|$)/, /^\/account(\/|$)/, /^\/read(\/|$)/, /^\/admin(?!\/login)(\/|$)/, /^\/affiliate(?!\/(login|apply))(\/|$)/];
+
 /**
- * Optimistic redirect for signed-out visitors on protected pages, so they land on the
- * right sign-in screen without a flash of dashboard UI. This only checks that a session
- * cookie exists — the API validates the session and role on every request.
+ * 1. Optimistic redirect for signed-out visitors on protected pages, so they land on the right
+ *    sign-in screen without a flash of dashboard UI. This only checks that a session cookie
+ *    exists — the API validates the session and role on every request.
+ * 2. Remembers the visitor's country (from Vercel's geo header) in a cookie, so the API and the
+ *    browser show international prices consistently.
  */
 export function proxy(request: NextRequest) {
-  if (request.cookies.has(SESSION_COOKIE)) return NextResponse.next();
-
   const { pathname, search } = request.nextUrl;
-  const loginPath = pathname.startsWith("/admin")
-    ? "/admin/login"
-    : pathname.startsWith("/affiliate")
-      ? "/affiliate/login"
-      : "/login";
 
-  const url = request.nextUrl.clone();
-  url.pathname = loginPath;
-  url.search = `?next=${encodeURIComponent(pathname + search)}`;
-  return NextResponse.redirect(url);
+  if (!request.cookies.has(SESSION_COOKIE) && PROTECTED.some((rx) => rx.test(pathname))) {
+    const loginPath = pathname.startsWith("/admin") ? "/admin/login" : pathname.startsWith("/affiliate") ? "/affiliate/login" : "/login";
+    const url = request.nextUrl.clone();
+    url.pathname = loginPath;
+    url.search = `?next=${encodeURIComponent(pathname + search)}`;
+    return NextResponse.redirect(url);
+  }
+
+  const res = NextResponse.next();
+  const country = request.headers.get("x-vercel-ip-country")?.toUpperCase();
+  if (country && /^[A-Z]{2}$/.test(country) && request.cookies.get(COUNTRY_COOKIE)?.value !== country) {
+    res.cookies.set(COUNTRY_COOKIE, country, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 7 });
+  }
+  return res;
 }
 
 export const config = {
-  matcher: [
-    "/library/:path*",
-    "/account/:path*",
-    "/read/:path*",
-    "/admin",
-    "/admin/((?!login).*)",
-    "/affiliate",
-    "/affiliate/((?!login|apply).*)",
-  ],
+  // Every page, but not the API, referral links, build assets or static files.
+  matcher: ["/((?!api/|r/|_next/|icons/|pdfjs/|sw\\.js|manifest\\.webmanifest|favicon\\.ico|.*\\.[a-z0-9]+$).*)"],
 };

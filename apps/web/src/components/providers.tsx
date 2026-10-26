@@ -8,8 +8,9 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/i18n/client";
 import type { Locale } from "@/i18n/config";
+import { RegionProvider } from "@/lib/region-client";
 
-export function Providers({ locale, children }: { locale: Locale; children: ReactNode }) {
+export function Providers({ locale, international, children }: { locale: Locale; international: boolean; children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -21,16 +22,18 @@ export function Providers({ locale, children }: { locale: Locale; children: Reac
 
   return (
     <QueryClientProvider client={queryClient}>
-      <I18nProvider initialLocale={locale}>
-        {/* Follows the device setting until the visitor picks light or dark. */}
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <TooltipProvider delayDuration={200}>
-            {children}
-            <Toaster richColors position="top-center" />
-            <RegisterServiceWorker />
-          </TooltipProvider>
-        </ThemeProvider>
-      </I18nProvider>
+      <RegionProvider international={international}>
+        <I18nProvider initialLocale={locale}>
+          {/* Follows the device setting until the visitor picks light or dark. */}
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            <TooltipProvider delayDuration={200}>
+              {children}
+              <Toaster richColors position="top-center" />
+              <RegisterServiceWorker />
+            </TooltipProvider>
+          </ThemeProvider>
+        </I18nProvider>
+      </RegionProvider>
     </QueryClientProvider>
   );
 }
