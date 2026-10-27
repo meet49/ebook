@@ -11,6 +11,7 @@ import { errorHandler, notFoundHandler } from './middleware/error';
 import { verifyOrigin } from './middleware/origin';
 import { globalLimiter } from './middleware/rateLimit';
 import { adminAffiliatesRouter, adminCommissionsRouter, adminPayoutsRouter } from './modules/admin/affiliates.routes';
+import { adminCouponsRouter } from './modules/admin/coupons.routes';
 import { adminOrdersRouter } from './modules/admin/orders.routes';
 import { adminSettingsRouter } from './modules/admin/settings.routes';
 import { adminStatsRouter } from './modules/admin/stats.routes';
@@ -68,6 +69,7 @@ export function createApp() {
   v1.use('/admin/commissions', requireRole('admin'), adminCommissionsRouter);
   v1.use('/admin/payouts', requireRole('admin'), adminPayoutsRouter);
   v1.use('/admin/settings', requireRole('admin'), adminSettingsRouter);
+  v1.use('/admin/coupons', requireRole('admin'), adminCouponsRouter);
   v1.use('/admin', requireRole('admin'), adminStatsRouter);
   app.use('/api/v1', v1);
 

@@ -1,16 +1,20 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Check, Fingerprint, MonitorSmartphone, Plus, Sparkles, Timer, Zap } from "lucide-react";
+import { Check, Fingerprint, MonitorSmartphone, Plus, Sparkles, TicketPercent, Timer, Zap } from "lucide-react";
 import { useState } from "react";
 import { formatINR, formatMoney, type CheckoutQuote, type ProductDetail, type ProductSummary, type QuoteLine } from "@ebook/shared";
 import { CheckoutPanel } from "@/components/checkout/checkout-panel";
 import { useTimeLeft } from "@/components/checkout/combo-offers";
 import { BookCover } from "@/components/products/book-cover";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { useMessages } from "@/i18n/client";
 import { api } from "@/lib/api";
 import { useMe } from "@/lib/auth";
+import { forgetCoupon } from "@/lib/coupon";
 import { displayCombo } from "@/lib/region";
 import { useInternational } from "@/lib/region-client";
 import { cn } from "@/lib/utils";
@@ -21,18 +25,32 @@ const MAX_ADD_ONS = 3;
  * Order summary, combo add-ons and payment. Prices always come from the server quote; the
  * order is priced again when it is created.
  */
-export function CheckoutClient({ product, initialAddOns, fromOrder }: { product: ProductDetail; initialAddOns: string[]; fromOrder?: string }) {
+export function CheckoutClient({
+  product,
+  initialAddOns,
+  fromOrder,
+  initialCoupon,
+}: {
+  product: ProductDetail;
+  initialAddOns: string[];
+  fromOrder?: string;
+  initialCoupon?: string;
+}) {
   const messages = useMessages();
   const t = messages.checkout;
   const tc = messages.common;
   const { data: user, isPending: userPending } = useMe();
   const international = useInternational();
   const [addOns, setAddOns] = useState<string[]>(() => initialAddOns.slice(0, MAX_ADD_ONS));
+  const [coupon, setCoupon] = useState(initialCoupon ?? "");
 
-  const { data: quote, isPlaceholderData } = useQuery({
-    queryKey: ["checkout", "quote", product.slug, addOns, fromOrder ?? null, user?.id ?? null],
+  const { data: quote, isPlaceholderData, isFetching } = useQuery({
+    queryKey: ["checkout", "quote", product.slug, addOns, fromOrder ?? null, user?.id ?? null, coupon],
     queryFn: () =>
-      api<{ quote: CheckoutQuote }>("/checkout/quote", { method: "POST", body: { productSlug: product.slug, addOnSlugs: addOns, fromOrder } }).then((r) => r.quote),
+      api<{ quote: CheckoutQuote }>("/checkout/quote", {
+        method: "POST",
+        body: { productSlug: product.slug, addOnSlugs: addOns, fromOrder, couponCode: coupon || undefined },
+      }).then((r) => r.quote),
     enabled: !userPending,
     placeholderData: (prev) => prev,
     retry: false,
@@ -64,7 +82,12 @@ export function CheckoutClient({ product, initialAddOns, fromOrder }: { product:
   // INR shows the book's regular (pre-sale) price struck through; USD has no sale price.
   const regularTotal = currency === "INR" ? product.pricePaise - product.effectivePricePaise + listTotal : listTotal;
   const saleSavings = currency === "INR" ? product.pricePaise - product.effectivePricePaise : 0;
-  const comboSavings = quote?.savingsDisplayMinor ?? 0;
+  const couponSavings = quote?.coupon?.discountDisplayMinor ?? 0;
+  const comboSavings = (quote?.savingsDisplayMinor ?? 0) - couponSavings;
+  const removeCoupon = () => {
+    setCoupon("");
+    forgetCoupon();
+  };
   const left = useTimeLeft(quote?.offerExpiresAt ?? null);
 
   const included = [
@@ -112,11 +135,12 @@ export function CheckoutClient({ product, initialAddOns, fromOrder }: { product:
                     <span className="bg-primary/10 text-primary mt-0.5 inline-flex rounded-full px-1.5 py-px text-[10px] font-semibold uppercase">{t.combo.badge}</span>
                   )}
                 </dt>
+                {/* The coupon is shown as its own line, so each book shows its price before it. */}
                 <dd className="shrink-0 text-right tabular-nums">
-                  {l.displayPriceMinor < l.displayListMinor && (
+                  {l.displayPriceMinor + (l.couponDisplayMinor ?? 0) < l.displayListMinor && (
                     <span className="text-muted-foreground mr-1.5 text-xs line-through">{money(l.displayListMinor)}</span>
                   )}
-                  {money(l.displayPriceMinor)}
+                  {money(l.displayPriceMinor + (l.couponDisplayMinor ?? 0))}
                 </dd>
               </div>
             ))}
@@ -126,6 +150,12 @@ export function CheckoutClient({ product, initialAddOns, fromOrder }: { product:
                   {t.discount} <span className="text-success text-xs font-semibold">({tc.price.off(product.discountPercent)})</span>
                 </dt>
                 <dd className="text-success tabular-nums">−{formatINR(saleSavings)}</dd>
+              </div>
+            )}
+            {quote?.coupon && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">{t.coupon.line(quote.coupon.code)}</dt>
+                <dd className="text-success tabular-nums">−{money(couponSavings)}</dd>
               </div>
             )}
             <div className="flex items-baseline justify-between gap-4 border-t border-dashed pt-3">
@@ -140,6 +170,16 @@ export function CheckoutClient({ product, initialAddOns, fromOrder }: { product:
               <p className="text-muted-foreground bg-muted/50 rounded-xl p-3 text-xs leading-relaxed">{t.intl.charged(formatINR(total), quote.fxRate.toFixed(2))}</p>
             ) : null}
           </dl>
+
+          <CouponField
+            key={quote?.coupon?.code ?? "none"}
+            code={coupon}
+            applied={quote?.coupon?.code ?? null}
+            error={coupon && !isFetching ? (quote?.couponError ?? null) : null}
+            busy={Boolean(coupon) && isFetching}
+            onApply={setCoupon}
+            onRemove={removeCoupon}
+          />
 
           <div className="bg-muted/40 border-t p-5 sm:px-6">
             <p className="mb-3 text-xs font-semibold">{t.included.title}</p>
@@ -193,9 +233,97 @@ export function CheckoutClient({ product, initialAddOns, fromOrder }: { product:
             payLabel={currency === "USD" ? t.intl.payLabel(money(totalDisplay), formatINR(total)) : undefined}
             addOnSlugs={addOns.filter((s) => offered.has(s))}
             onAddOnOwned={(slug) => setAddOns((cur) => cur.filter((s) => s !== slug))}
+            couponCode={quote?.coupon ? coupon : undefined}
+            onCouponInvalid={removeCoupon}
           />
         </section>
       </div>
+    </div>
+  );
+}
+
+/** "Have a coupon?" link that opens a code field; shows the applied code with a way to remove it. */
+function CouponField({
+  code,
+  applied,
+  error,
+  busy,
+  onApply,
+  onRemove,
+}: {
+  code: string;
+  applied: string | null;
+  error: string | null;
+  busy: boolean;
+  onApply: (code: string) => void;
+  onRemove: () => void;
+}) {
+  const t = useMessages().checkout.coupon;
+  const [open, setOpen] = useState(Boolean(code));
+  const [draft, setDraft] = useState(code);
+
+  if (applied) {
+    return (
+      <div className="flex items-center justify-between gap-3 border-t px-5 py-3 sm:px-6">
+        <span className="text-success inline-flex min-w-0 items-center gap-1.5 text-sm font-medium">
+          <TicketPercent className="size-4 shrink-0" aria-hidden />
+          <span className="truncate">{t.applied(applied)}</span>
+        </span>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setDraft("");
+            onRemove();
+          }}
+        >
+          {t.remove}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-t px-5 py-3 sm:px-6">
+      {!open ? (
+        <button type="button" onClick={() => setOpen(true)} className="text-primary inline-flex items-center gap-1.5 text-sm font-medium hover:underline">
+          <TicketPercent className="size-4" aria-hidden /> {t.toggle}
+        </button>
+      ) : (
+        <form
+          className="space-y-1.5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onApply(draft.trim().toUpperCase());
+          }}
+        >
+          <label htmlFor="coupon-code" className="text-xs font-semibold">
+            {t.label}
+          </label>
+          <div className="flex gap-2">
+            <Input
+              id="coupon-code"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value.toUpperCase())}
+              placeholder={t.placeholder}
+              autoComplete="off"
+              maxLength={20}
+              className="font-mono uppercase"
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? "coupon-error" : undefined}
+            />
+            <Button type="submit" variant="outline" disabled={!draft.trim() || busy}>
+              {busy ? <Spinner /> : null} {t.apply}
+            </Button>
+          </div>
+          {error && (
+            <p id="coupon-error" role="alert" className="text-destructive text-xs">
+              {t.error(error)}
+            </p>
+          )}
+        </form>
+      )}
     </div>
   );
 }

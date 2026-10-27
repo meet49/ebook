@@ -138,3 +138,20 @@ export async function resolveAttribution(req: Request, user: UserDoc, products: 
     rule: { type: product.affiliate?.type ?? 'percent', value: product.affiliate?.value ?? 0 },
   };
 }
+
+/**
+ * Sales made with a coupon that belongs to an affiliate are credited to that affiliate, even
+ * without a link click. Null when the affiliate is not approved, is the buyer, or no book in the
+ * order pays commission.
+ */
+export async function couponAttribution(affiliateId: Types.ObjectId, user: UserDoc, products: ProductDoc[]): Promise<Attribution | null> {
+  const product = products.find((p) => p.affiliate?.enabled);
+  if (!product) return null;
+  const affiliate = await AffiliateProfile.findById(affiliateId);
+  if (affiliate?.status !== 'approved' || affiliate.userId.equals(user._id)) return null;
+  return {
+    type: 'affiliate',
+    affiliateId: affiliate._id,
+    rule: { type: product.affiliate?.type ?? 'percent', value: product.affiliate?.value ?? 0 },
+  };
+}

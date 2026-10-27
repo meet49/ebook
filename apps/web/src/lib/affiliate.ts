@@ -14,6 +14,18 @@ export interface AffiliateProfileDto {
   createdAt: string;
 }
 
+/** A coupon code the admin gave the affiliate; sales using it are credited to them. */
+export interface AffiliateCouponDto {
+  code: string;
+  description: string;
+  type: "percent" | "fixed";
+  percentOff: number | null;
+  amountOffPaise: number | null;
+  endsAt: string | null;
+  /** The store, with the code filled in at checkout. */
+  url: string;
+}
+
 export interface AffiliateProductDto {
   productId: string;
   slug: string;

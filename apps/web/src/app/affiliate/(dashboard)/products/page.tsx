@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Check, ChevronDown, Copy, Download, Link2, MousePointerClick, SearchX, Share2 } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Copy, Download, Link2, MousePointerClick, SearchX, Share2, TicketPercent } from "lucide-react";
 import { useDeferredValue, useState } from "react";
 import { toast } from "sonner";
 import { formatINR } from "@ebook/shared";
@@ -17,7 +17,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useMessages } from "@/i18n/client";
-import type { AffiliateProductDto } from "@/lib/affiliate";
+import type { AffiliateCouponDto, AffiliateProductDto } from "@/lib/affiliate";
 import { api, errorMessage } from "@/lib/api";
 
 export default function AffiliateProductsPage() {
@@ -67,6 +67,7 @@ function ProductList() {
 
   return (
     <div className="space-y-5">
+      <MyCoupons />
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <ol aria-label={t.stepsLabel} className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm">
           {t.steps.map((step, i) => (
@@ -100,6 +101,59 @@ function ProductList() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Coupon codes the admin gave this affiliate. Shown only when there are some. */
+function MyCoupons() {
+  const messages = useMessages();
+  const t = messages.affiliate.coupons;
+  const fmt = useAffiliateFormat();
+  const { data } = useQuery({
+    queryKey: ["affiliate", "coupons"],
+    queryFn: () => api<{ items: AffiliateCouponDto[] }>("/affiliate/coupons").then((r) => r.items),
+  });
+  if (!data?.length) return null;
+
+  const copy = async (text: string, success: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(success);
+    } catch {
+      toast.error(messages.affiliate.common.copyFailed);
+    }
+  };
+
+  return (
+    <Card className="gap-0 rounded-2xl py-0">
+      <div className="space-y-1 p-4 sm:p-5">
+        <h2 className="flex items-center gap-2 font-semibold">
+          <TicketPercent className="text-primary size-4" aria-hidden /> {t.title}
+        </h2>
+        <p className="text-muted-foreground text-sm">{t.body}</p>
+      </div>
+      <ul className="divide-y border-t">
+        {data.map((c) => (
+          <li key={c.code} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div className="min-w-0">
+              <p className="font-mono text-lg font-semibold tracking-wide">{c.code}</p>
+              <p className="text-muted-foreground text-xs">
+                {c.type === "percent" ? t.percentOff(c.percentOff ?? 0) : t.amountOff(formatINR(c.amountOffPaise ?? 0))}
+                {c.endsAt ? ` · ${t.validTill(fmt.date(c.endsAt))}` : ""}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => copy(c.code, t.codeCopied)}>
+                <Copy /> {t.copyCode}
+              </Button>
+              <Button size="sm" onClick={() => copy(c.url, t.linkCopied)}>
+                <Link2 /> {t.copyLink}
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 

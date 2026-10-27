@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Lock } from "lucide-react";
 import { CheckoutClient } from "@/components/checkout/checkout-client";
 import { getMessages } from "@/i18n/server";
+import { COUPON_COOKIE, couponFrom } from "@/lib/coupon";
 import { getProduct } from "@/lib/server-api";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +23,8 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
   const addParam = typeof query.add === "string" ? query.add : "";
   const initialAddOns = addParam.split(",").filter((s) => SLUG.test(s) && s !== slug).slice(0, 3);
   const fromOrder = typeof query.from === "string" && ORDER_NUMBER.test(query.from) ? query.from : undefined;
+  // ?coupon=CODE, or one remembered from a shared link.
+  const initialCoupon = couponFrom(query.coupon) ?? couponFrom((await cookies()).get(COUPON_COOKIE)?.value);
   const product = await getProduct(slug);
   if (!product) notFound();
 
@@ -63,7 +67,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
         </ol>
       </div>
 
-      <CheckoutClient product={product} initialAddOns={initialAddOns} fromOrder={fromOrder} />
+      <CheckoutClient product={product} initialAddOns={initialAddOns} fromOrder={fromOrder} initialCoupon={initialCoupon} />
     </div>
   );
 }

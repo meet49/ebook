@@ -2,6 +2,7 @@ import type { Types } from 'mongoose';
 import { intlComboCents, type DisplayCurrency } from '@ebook/shared';
 import { badRequest } from '../../lib/errors';
 import { centsToPaise, usdToInrRate } from '../../lib/fx';
+import { CouponError, applyCoupon, loadUsableCoupon, type AppliedCoupon } from './coupons';
 import { Entitlement } from '../../models/Entitlement';
 import { Order } from '../../models/Order';
 import { Product, type ProductDoc } from '../../models/Product';
@@ -20,6 +21,9 @@ export interface PricedLine {
   /** What the buyer sees, in the display currency's minor unit (paise or cents). */
   displayListMinor: number;
   displayPriceMinor: number;
+  /** Coupon discount already taken off pricePaise, and off displayPriceMinor. */
+  couponDiscountPaise?: number;
+  couponDisplayMinor?: number;
 }
 
 export interface PricedOrder {
@@ -30,6 +34,9 @@ export interface PricedOrder {
   totalDisplayMinor: number;
   /** INR per USD used, when the currency is USD. */
   fxRate: number | null;
+  coupon: AppliedCoupon | null;
+  /** Set (instead of throwing) when a coupon could not be applied and `lenientCoupon` was asked for. */
+  couponError: string | null;
   /** When the post-purchase combo price for the main book expires (null if it does not apply). */
   offerExpiresAt: Date | null;
 }
@@ -79,7 +86,7 @@ export async function priceOrder(
   product: ProductDoc,
   addOnSlugs: string[],
   userId: Types.ObjectId | null,
-  opts: { international?: boolean } = {},
+  opts: { international?: boolean; couponCode?: string; lenientCoupon?: boolean } = {},
 ): Promise<PricedOrder> {
   const slugs = [...new Set(addOnSlugs.map((s) => s.toLowerCase()))].filter((s) => s !== product.slug);
   if (slugs.length > MAX_ADD_ONS) throw badRequest(`You can add at most ${MAX_ADD_ONS} books to one order`);
@@ -124,9 +131,23 @@ export async function priceOrder(
       currency = 'USD';
     }
   }
+  let coupon: AppliedCoupon | null = null;
+  let couponError: string | null = null;
+  if (opts.couponCode?.trim()) {
+    try {
+      const applied = applyCoupon(await loadUsableCoupon(opts.couponCode, userId), lines);
+      lines = applied.lines;
+      coupon = applied.applied;
+    } catch (err) {
+      if (!(err instanceof CouponError) || !opts.lenientCoupon) throw err;
+      couponError = err.message;
+    }
+  }
   return {
     lines,
     totalPaise: lines.reduce((s, l) => s + l.pricePaise, 0),
+    coupon,
+    couponError,
     currency,
     totalDisplayMinor: lines.reduce((s, l) => s + l.displayPriceMinor, 0),
     fxRate,

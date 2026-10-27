@@ -115,6 +115,8 @@ export interface OrderLine {
 export interface QuoteLine extends OrderLine {
   displayListMinor: number;
   displayPriceMinor: number;
+  /** Coupon discount already taken off displayPriceMinor. */
+  couponDisplayMinor?: number;
 }
 
 /** Server-calculated price breakdown shown before payment. */
@@ -129,6 +131,10 @@ export interface CheckoutQuote {
   savingsDisplayMinor: number;
   /** INR per USD used to convert, when the currency is USD. */
   fxRate: number | null;
+  /** The applied coupon, when one was entered and is valid. */
+  coupon: { code: string; discountPaise: number; discountDisplayMinor: number } | null;
+  /** Why an entered coupon was not applied (shown next to the field). */
+  couponError: string | null;
   /** Books that can still be added to this order at their combo price. */
   addOns: ProductSummary[];
   /** Set when a post-purchase combo price applies to the main book. */
@@ -139,4 +145,26 @@ export interface CheckoutQuote {
 export interface ComboOffers {
   expiresAt: string | null;
   items: ProductSummary[];
+}
+
+export interface AdminCoupon {
+  id: string;
+  code: string;
+  description: string;
+  type: 'percent' | 'fixed';
+  percentOff: number | null;
+  amountOffPaise: number | null;
+  appliesTo: 'books' | 'selected' | 'membership' | 'all';
+  productIds: string[];
+  minOrderPaise: number;
+  maxRedemptions: number | null;
+  perUserLimit: number | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  active: boolean;
+  affiliateCode: string | null;
+  /** Paid orders that used it, and the total discount given. */
+  uses: number;
+  discountPaise: number;
+  createdAt: string;
 }

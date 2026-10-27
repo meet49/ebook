@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { COUPON_COOKIE, couponFrom } from "@/lib/coupon";
 import { COUNTRY_COOKIE } from "@/lib/region";
 
 const SESSION_COOKIE = process.env.SESSION_COOKIE_NAME ?? "ebook_sid";
@@ -12,6 +13,7 @@ const PROTECTED = [/^\/library(\/|$)/, /^\/account(\/|$)/, /^\/read(\/|$)/, /^\/
  *    exists — the API validates the session and role on every request.
  * 2. Remembers the visitor's country (from Vercel's geo header) in a cookie, so the API and the
  *    browser show international prices consistently.
+ * 3. Remembers a coupon from a shared link (?coupon=CODE) for a week, for checkout.
  */
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -29,6 +31,8 @@ export function proxy(request: NextRequest) {
   if (country && /^[A-Z]{2}$/.test(country) && request.cookies.get(COUNTRY_COOKIE)?.value !== country) {
     res.cookies.set(COUNTRY_COOKIE, country, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 7 });
   }
+  const coupon = couponFrom(request.nextUrl.searchParams.get("coupon"));
+  if (coupon) res.cookies.set(COUPON_COOKIE, coupon, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 7 });
   return res;
 }
 

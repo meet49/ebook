@@ -108,9 +108,30 @@ const en = {
     payLabel: (usd: string, inr: string) => `Pay ${usd} (${inr})`,
     methods: "International debit & credit cards",
   },
+  coupon: {
+    toggle: "Have a coupon code?",
+    label: "Coupon code",
+    placeholder: "e.g. DIWALI20",
+    apply: "Apply",
+    remove: "Remove",
+    applied: (code: string) => `${code} applied`,
+    line: (code: string) => `Coupon (${code})`,
+    error: (message: string) => message,
+  },
 };
 
 export type CheckoutMessages = typeof en;
+
+/** The API's coupon messages, in Hindi. Others (e.g. the minimum order) stay as sent. */
+const COUPON_ERRORS_HI: Record<string, string> = {
+  "This coupon code is not valid": "यह कूपन कोड सही नहीं है",
+  "This coupon is not active yet": "यह कूपन अभी शुरू नहीं हुआ है",
+  "This coupon has expired": "यह कूपन ख़त्म हो चुका है",
+  "This coupon has been fully used": "यह कूपन पूरी तरह इस्तेमाल हो चुका है",
+  "You have already used this coupon": "आप यह कूपन पहले ही इस्तेमाल कर चुके हैं",
+  "This coupon does not apply to these items": "यह कूपन इन किताबों पर लागू नहीं होता",
+  "This coupon does not lower the price of these items": "इस कूपन से इन किताबों की कीमत कम नहीं होती",
+};
 
 const hi: CheckoutMessages = {
   metaTitle: "चेकआउट",
@@ -220,6 +241,16 @@ const hi: CheckoutMessages = {
     charged: (inr: string, rate: string) => `आपसे आज के रेट पर भारतीय रुपये में ${inr} लिए जाएँगे (1 USD = ₹${rate})। आपका बैंक थोड़ी कन्वर्ज़न फ़ीस ले सकता है।`,
     payLabel: (usd: string, inr: string) => `${usd} (${inr}) का पेमेंट करें`,
     methods: "इंटरनेशनल डेबिट और क्रेडिट कार्ड",
+  },
+  coupon: {
+    toggle: "कूपन कोड है?",
+    label: "कूपन कोड",
+    placeholder: "जैसे DIWALI20",
+    apply: "लागू करें",
+    remove: "हटाएँ",
+    applied: (code: string) => `${code} लागू हो गया`,
+    line: (code: string) => `कूपन (${code})`,
+    error: (message: string) => COUPON_ERRORS_HI[message] ?? message,
   },
 };
 

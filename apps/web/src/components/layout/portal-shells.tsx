@@ -14,6 +14,7 @@ import {
   Receipt,
   ScrollText,
   Settings,
+  TicketPercent,
   UserCircle,
   Users,
   UsersRound,
@@ -36,6 +37,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         { href: "/admin/products", label: a.products, icon: BookOpen },
         { href: "/admin/orders", label: a.orders, icon: Receipt },
         { href: "/admin/customers", label: a.customers, icon: Users },
+        { href: "/admin/coupons", label: a.coupons, icon: TicketPercent },
       ],
     },
     {

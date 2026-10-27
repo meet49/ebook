@@ -53,3 +53,14 @@ export type PaymentEventStatus = (typeof PAYMENT_EVENT_STATUSES)[number];
 
 export const AUTH_TOKEN_PURPOSES = ['verify_email', 'reset_password', 'magic_login'] as const;
 export type AuthTokenPurpose = (typeof AUTH_TOKEN_PURPOSES)[number];
+
+export const COUPON_TYPES = ['percent', 'fixed'] as const;
+export type CouponType = (typeof COUPON_TYPES)[number];
+
+/** What a coupon discounts: every book, the chosen books, membership passes, or everything. */
+export const COUPON_SCOPES = ['books', 'selected', 'membership', 'all'] as const;
+export type CouponScope = (typeof COUPON_SCOPES)[number];
+
+/** A catalogue item is an eBook or a membership pass (an all-access plan). */
+export const PRODUCT_KINDS = ['book', 'membership'] as const;
+export type ProductKind = (typeof PRODUCT_KINDS)[number];

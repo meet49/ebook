@@ -18,6 +18,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useMessages } from "@/i18n/client";
 import { ApiError, api } from "@/lib/api";
 import { useMe } from "@/lib/auth";
+import { forgetCoupon } from "@/lib/coupon";
 import { handleFormError } from "@/lib/forms";
 import { loadRazorpay, openRazorpay, type RazorpaySuccess } from "@/lib/razorpay";
 import { SITE_NAME } from "@/lib/site";
@@ -42,6 +43,8 @@ export function CheckoutPanel({
   payLabel,
   addOnSlugs = [],
   onAddOnOwned,
+  couponCode,
+  onCouponInvalid,
 }: {
   slug: string;
   /** The total charged in INR (from the server quote). */
@@ -52,6 +55,9 @@ export function CheckoutPanel({
   addOnSlugs?: string[];
   /** Called when an added book turns out to be owned already, so it can be removed. */
   onAddOnOwned?: (slug: string) => void;
+  /** A coupon the quote accepted; the order checks it again. */
+  couponCode?: string;
+  onCouponInvalid?: () => void;
 }) {
   const t = useMessages().checkout;
   const router = useRouter();
@@ -62,6 +68,7 @@ export function CheckoutPanel({
 
   const verify = async (order: CreatedOrder, res: RazorpaySuccess) => {
     setStage("verifying");
+    if (couponCode) forgetCoupon();
     try {
       await api("/checkout/verify", { method: "POST", body: res });
     } catch (err) {
@@ -77,12 +84,18 @@ export function CheckoutPanel({
     let order: CreatedOrder;
     try {
       const [created] = await Promise.all([
-        api<CreatedOrder>("/checkout/orders", { method: "POST", body: { productSlug: slug, addOnSlugs, ...guest } }),
+        api<CreatedOrder>("/checkout/orders", { method: "POST", body: { productSlug: slug, addOnSlugs, couponCode, ...guest } }),
         loadRazorpay(),
       ]);
       order = created;
     } catch (err) {
       setStage("idle");
+      if (err instanceof ApiError && err.code === "INVALID_COUPON") {
+        // E.g. a one-use coupon used up since the quote: drop it and show the new price.
+        toast.error(err.message);
+        onCouponInvalid?.();
+        return;
+      }
       if (err instanceof ApiError && err.code === "ALREADY_OWNED") {
         const addOn = err.details?.addOnSlugs?.[0];
         if (addOn) {

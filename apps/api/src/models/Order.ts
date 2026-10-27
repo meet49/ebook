@@ -25,6 +25,8 @@ const orderSchema = new Schema(
           combo: { type: Boolean, default: false },
           /** What the buyer was shown for this book, in the display currency's minor unit. */
           displayPriceMinor: { type: Number, default: null },
+          /** Coupon discount on this book, in paise (already taken off pricePaise). */
+          couponDiscountPaise: { type: Number, default: 0 },
           /** This book's commission rule at order time; null when it pays no commission. */
           commissionRule: {
             type: new Schema({ type: { type: String, enum: ['percent', 'fixed'] }, value: Number }, { _id: false }),
@@ -38,6 +40,12 @@ const orderSchema = new Schema(
 
     amountPaise: { type: Number, required: true },
     currency: { type: String, default: 'INR' },
+    /** Coupon used, if any; uses are counted from paid orders. */
+    coupon: {
+      couponId: { type: Schema.Types.ObjectId, ref: 'Coupon', default: null },
+      code: { type: String, default: null },
+      discountPaise: { type: Number, default: 0 },
+    },
     /** Prices as shown to the buyer. International orders show USD but are always charged in INR. */
     display: {
       currency: { type: String, enum: ['INR', 'USD'], default: 'INR' },
@@ -97,6 +105,7 @@ orderSchema.index(
 );
 orderSchema.index({ userId: 1, createdAt: -1 });
 orderSchema.index({ 'items.productId': 1 });
+orderSchema.index({ 'coupon.couponId': 1, status: 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ 'attribution.affiliateId': 1, createdAt: -1 });
 

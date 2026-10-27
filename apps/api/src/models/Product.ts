@@ -1,5 +1,5 @@
 import { Schema, model, type HydratedDocument, type InferSchemaType } from 'mongoose';
-import { COMMISSION_TYPES, PRODUCT_STATUSES } from '@ebook/shared';
+import { COMMISSION_TYPES, PRODUCT_KINDS, PRODUCT_STATUSES } from '@ebook/shared';
 
 const integerPaise = {
   validator: (v: number | null | undefined) => v == null || (Number.isSafeInteger(v) && v >= 0),
@@ -31,6 +31,8 @@ const productSchema = new Schema(
     currency: { type: String, default: 'INR', enum: ['INR'] },
 
     status: { type: String, enum: PRODUCT_STATUSES, default: 'draft' },
+    /** An eBook, or a membership pass (an all-access plan sold through the same checkout). */
+    kind: { type: String, enum: PRODUCT_KINDS, default: 'book' },
     featured: { type: Boolean, default: false },
     publishedAt: { type: Date, default: null },
 

@@ -14,7 +14,7 @@ import { Entitlement } from '../../models/Entitlement';
 import { Order } from '../../models/Order';
 import { Product } from '../../models/Product';
 import { User, type UserDoc } from '../../models/User';
-import { resolveAttribution } from '../affiliates/attribution';
+import { couponAttribution, resolveAttribution } from '../affiliates/attribution';
 import { toSummary } from '../products/products.service';
 import { PaymentMismatchError, assertPaymentMatchesOrder, fulfilOrder, newOrderNumber } from './fulfilment';
 import { orderLines, publicLine } from './lines';
@@ -29,6 +29,7 @@ const createOrderSchema = z.object({
   productSlug: slugSchema,
   /** Same-category books added at their combo price. */
   addOnSlugs: z.array(slugSchema).max(MAX_ADD_ONS).default([]),
+  couponCode: z.string().trim().max(20).optional(),
   /** Required only for guests; ignored when signed in. */
   name: nameSchema.optional(),
   email: emailSchema.optional(),
@@ -82,7 +83,7 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
   }
 
   // Prices, combo eligibility and commission always come from the server, never the browser.
-  const priced = await priceOrder(product, input.addOnSlugs, user._id, { international: isInternational(req) });
+  const priced = await priceOrder(product, input.addOnSlugs, user._id, { international: isInternational(req), couponCode: input.couponCode });
   const extras = priced.lines.slice(1).map((l) => l.product);
   if (extras.length) {
     const owned = await Entitlement.findOne({ userId: user._id, productId: { $in: extras.map((p) => p._id) }, status: 'active' });
@@ -94,7 +95,10 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
     }
   }
   const amountPaise = priced.totalPaise;
-  const attribution = await resolveAttribution(req, user, priced.lines.map((l) => l.product));
+  const books = priced.lines.map((l) => l.product);
+  // A coupon that belongs to an affiliate credits them; otherwise the usual link attribution.
+  const viaCoupon = priced.coupon?.coupon.affiliateId ? await couponAttribution(priced.coupon.coupon.affiliateId, user, books) : null;
+  const attribution = viaCoupon ?? (await resolveAttribution(req, user, books));
   const orderNumber = newOrderNumber();
   const rzpOrder = await gw.createOrder({
     amount: amountPaise,
@@ -122,6 +126,7 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
       pricePaise: l.pricePaise,
       combo: l.combo,
       displayPriceMinor: l.displayPriceMinor,
+      couponDiscountPaise: l.couponDiscountPaise ?? 0,
       commissionRule: l.product.affiliate?.enabled
         ? { type: l.product.affiliate.type ?? 'percent', value: l.product.affiliate.value ?? 0 }
         : null,
@@ -130,6 +135,9 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
     amountPaise,
     currency: 'INR',
     display: { currency: priced.currency, totalMinor: priced.totalDisplayMinor, fxRate: priced.fxRate },
+    coupon: priced.coupon
+      ? { couponId: priced.coupon.coupon._id, code: priced.coupon.coupon.code, discountPaise: priced.coupon.discountPaise }
+      : { couponId: null, code: null, discountPaise: 0 },
     razorpay: { orderId: rzpOrder.id },
     attribution,
   });
@@ -141,6 +149,7 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
     amountPaise,
     currency: 'INR',
     display: { currency: priced.currency, totalMinor: priced.totalDisplayMinor, fxRate: priced.fxRate },
+    coupon: priced.coupon ? { code: priced.coupon.coupon.code, discountPaise: priced.coupon.discountPaise } : null,
     keyId: gw.keyId,
     product: { title: product.title, slug: product.slug },
     lines: priced.lines.map(lineOf),
@@ -157,6 +166,7 @@ function lineOf(l: PricedOrder['lines'][number]) {
     combo: l.combo,
     displayListMinor: l.displayListMinor,
     displayPriceMinor: l.displayPriceMinor,
+    couponDisplayMinor: l.couponDisplayMinor ?? 0,
   };
 }
 
@@ -165,6 +175,7 @@ const quoteSchema = z.object({
   addOnSlugs: z.array(slugSchema).max(MAX_ADD_ONS).default([]),
   /** A guest's just-paid order, so the confirmation page's combo offer shows the right price. */
   fromOrder: z.string().regex(ORDER_NUMBER).optional(),
+  couponCode: z.string().trim().max(20).optional(),
 });
 
 /**
@@ -178,7 +189,7 @@ checkoutRouter.post('/quote', async (req, res) => {
   if (!product) throw notFound('This eBook is not available');
   const userId = req.auth?.user._id ?? (input.fromOrder ? await recentBuyerOf(input.fromOrder) : null);
 
-  const priced = await priceOrder(product, input.addOnSlugs, userId, { international: isInternational(req) });
+  const priced = await priceOrder(product, input.addOnSlugs, userId, { international: isInternational(req), couponCode: input.couponCode, lenientCoupon: true });
   const addOns = await comboCandidates(product.categories, [product._id], userId);
   const quote: CheckoutQuote = {
     lines: priced.lines.map(lineOf),
@@ -188,6 +199,10 @@ checkoutRouter.post('/quote', async (req, res) => {
     totalDisplayMinor: priced.totalDisplayMinor,
     savingsDisplayMinor: priced.lines.reduce((sum, l) => sum + (l.displayListMinor - l.displayPriceMinor), 0),
     fxRate: priced.fxRate,
+    coupon: priced.coupon
+      ? { code: priced.coupon.coupon.code, discountPaise: priced.coupon.discountPaise, discountDisplayMinor: priced.coupon.discountDisplayMinor }
+      : null,
+    couponError: priced.couponError,
     addOns: addOns.map(toSummary),
     offerExpiresAt: priced.offerExpiresAt?.toISOString() ?? null,
   };

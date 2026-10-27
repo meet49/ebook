@@ -20,6 +20,7 @@ import { AffiliateClick } from '../../models/AffiliateClick';
 import { AffiliateProduct } from '../../models/AffiliateProduct';
 import { AffiliateProfile, type AffiliateProfileDoc } from '../../models/AffiliateProfile';
 import { Commission } from '../../models/Commission';
+import { Coupon } from '../../models/Coupon';
 import { Entitlement } from '../../models/Entitlement';
 import { Order } from '../../models/Order';
 import { Payout } from '../../models/Payout';
@@ -240,6 +241,24 @@ affiliateRouter.post('/links', async (req, res) => {
     }
   }
   res.status(201).json({ link: { code: link.linkCode, url: `${env.APP_URL}/r/${link.linkCode}`, clicks: link.clicks } });
+});
+
+/** Coupon codes the admin gave this affiliate: sales using them are credited to the affiliate. */
+affiliateRouter.get('/coupons', async (req, res) => {
+  const profile = await myApprovedProfile(req);
+  const now = new Date();
+  const coupons = await Coupon.find({ affiliateId: profile._id, active: true, $or: [{ endsAt: null }, { endsAt: { $gt: now } }] }).sort({ createdAt: -1 });
+  res.json({
+    items: coupons.map((c) => ({
+      code: c.code,
+      description: c.description ?? '',
+      type: c.type,
+      percentOff: c.percentOff ?? null,
+      amountOffPaise: c.amountOffPaise ?? null,
+      endsAt: c.endsAt?.toISOString() ?? null,
+      url: `${env.APP_URL}/ebooks?coupon=${encodeURIComponent(c.code)}`,
+    })),
+  });
 });
 
 const statsQuery = z.object({ days: z.coerce.number().int().min(7).max(365).default(30) });
