@@ -8,12 +8,13 @@ Ways to earn beyond single-book sales:
 - **Combos.** Same-category books at a combo price, at checkout and for 24 hours after a purchase.
 - **Coupons.** Admin → Coupons: percent or fixed codes for all books, selected books or
   membership plans, with dates and limits. Shareable as `?coupon=CODE` links. A coupon can belong
-  to an affiliate, who then earns commission on its sales.
+  to an affiliate, who then earns commission on its sales. Switch on “Show on the home page” to
+  advertise one as an offer (with a countdown when it ends within 10 days) on the home and eBooks pages.
 - **ReadnShare Pass.** Admin → Membership: one-time plans (e.g. 30 or 365 days) that open every
   book marked “Included in ReadnShare Pass”. No auto-renewal; passes stack.
 - **Buyers as affiliates.** Anyone who bought can join the affiliate program in one click from
   their library.
-- **Author marketplace.** Writers apply at `/author/apply`, add their books in the author portal
+- **Author marketplace.** Writers read about the program at `/authors` and apply at `/author/apply`, add their books in the author portal
   and send them for review. On each sale the affiliate commission comes off first, and the author
   earns their share (set per author by the admin) of the rest. Admin → Authors records payments.
 

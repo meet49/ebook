@@ -6,7 +6,7 @@ const en = {
   titleBefore: "Find your next",
   titleAccent: "great",
   titleAfter: "read",
-  subtitle: "Practical eBooks you can preview, buy securely and start reading in seconds — on any device.",
+  subtitle: "Practical eBooks you can buy securely and start reading in seconds — on any device.",
   search: {
     placeholder: "Search by title, author or topic",
     label: "Search eBooks",
@@ -52,7 +52,7 @@ const hi: CatalogMessages = {
   titleBefore: "अपनी अगली",
   titleAccent: "बेहतरीन",
   titleAfter: "किताब ढूँढें",
-  subtitle: "काम की ई-बुक्स — पहले झलक देखें, सुरक्षित तरीके से ख़रीदें और किसी भी डिवाइस पर तुरंत पढ़ना शुरू करें।",
+  subtitle: "काम की ई-बुक्स — सुरक्षित तरीके से ख़रीदें और किसी भी डिवाइस पर तुरंत पढ़ना शुरू करें।",
   search: {
     placeholder: "टाइटल, लेखक या विषय से खोजें",
     label: "ई-बुक्स खोजें",

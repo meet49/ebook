@@ -1,5 +1,5 @@
 import "server-only";
-import type { MembershipOverview, Paginated, ProductDetail, ProductSummary } from "@ebook/shared";
+import type { FeaturedOffer, MembershipOverview, Paginated, ProductDetail, ProductSummary } from "@ebook/shared";
 
 const API_URL = process.env.API_URL ?? "http://127.0.0.1:5000";
 
@@ -43,6 +43,13 @@ export async function getProduct(slug: string): Promise<ProductDetail | null> {
 /** Membership plans and the books they include; null if the API can't be reached. */
 export async function getMembership(): Promise<MembershipOverview | null> {
   return serverGet<MembershipOverview>("/membership").catch(() => null);
+}
+
+/** The coupon advertised on the home page, if one can be used now. Never breaks a page. */
+export async function getFeaturedOffer(): Promise<FeaturedOffer | null> {
+  return serverGet<{ offer: FeaturedOffer | null }>("/coupons/featured")
+    .then((r) => r?.offer ?? null)
+    .catch(() => null);
 }
 
 export interface SiteConfig {

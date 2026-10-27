@@ -34,6 +34,8 @@ export const couponInputSchema = z
     startsAt: optionalDate,
     endsAt: optionalDate,
     active: z.boolean().default(true),
+    /** Advertised on the home page (one coupon at a time). */
+    showOnHome: z.boolean().default(false),
     /** Credit sales made with this coupon to this affiliate (their code), if set. */
     affiliateCode: z.string().trim().toUpperCase().max(20).default(''),
   })
@@ -42,6 +44,8 @@ export const couponInputSchema = z
     if (c.type === 'fixed' && c.amountOffPaise == null) ctx.addIssue({ code: 'custom', path: ['amountOffPaise'], message: 'Enter the discount amount' });
     if (c.appliesTo === 'selected' && c.productIds.length === 0) ctx.addIssue({ code: 'custom', path: ['productIds'], message: 'Choose at least one eBook' });
     if (c.startsAt && c.endsAt && c.endsAt <= c.startsAt) ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'Must be after the start' });
+    // Every sale with a home-page coupon would otherwise be credited to one affiliate.
+    if (c.showOnHome && c.affiliateCode) ctx.addIssue({ code: 'custom', path: ['showOnHome'], message: "An affiliate's coupon can't be shown on the home page" });
   });
 
 export type CouponInput = z.input<typeof couponInputSchema>;

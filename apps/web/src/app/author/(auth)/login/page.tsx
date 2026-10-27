@@ -16,12 +16,19 @@ export default async function AuthorLoginPage() {
       title={t.title}
       description={t.description}
       footer={
-        <p>
-          {t.notYet}{" "}
-          <Link href="/author/apply" className="text-primary font-medium hover:underline">
-            {t.applyNow}
-          </Link>
-        </p>
+        <>
+          <p>
+            {t.notYet}{" "}
+            <Link href="/author/apply" className="text-primary font-medium hover:underline">
+              {t.applyNow}
+            </Link>
+          </p>
+          <p className="text-xs">
+            <Link href="/authors" className="hover:underline">
+              {t.howItWorks}
+            </Link>
+          </p>
+        </>
       }
     />
   );

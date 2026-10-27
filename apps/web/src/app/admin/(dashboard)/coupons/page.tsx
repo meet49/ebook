@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Pencil, Plus, TicketPercent, Trash2 } from "lucide-react";
+import { Copy, Home, Pencil, Plus, TicketPercent, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatINR, type AdminCoupon, type AdminProduct, type CouponInput, type CouponScope, type Paginated } from "@ebook/shared";
@@ -54,6 +54,7 @@ interface FormState {
   startsAt: string;
   endsAt: string;
   active: boolean;
+  showOnHome: boolean;
   affiliateCode: string;
 }
 
@@ -71,6 +72,7 @@ const EMPTY: FormState = {
   startsAt: "",
   endsAt: "",
   active: true,
+  showOnHome: false,
   affiliateCode: "",
 };
 
@@ -99,6 +101,7 @@ function formOf(c: AdminCoupon): FormState {
     startsAt: toLocalInput(c.startsAt),
     endsAt: toLocalInput(c.endsAt),
     active: c.active,
+    showOnHome: c.showOnHome,
     affiliateCode: c.affiliateCode ?? "",
   };
 }
@@ -118,6 +121,7 @@ function inputOf(f: FormState): CouponInput {
     startsAt: f.startsAt ? new Date(f.startsAt).toISOString() : null,
     endsAt: f.endsAt ? new Date(f.endsAt).toISOString() : null,
     active: f.active,
+    showOnHome: f.showOnHome && !f.affiliateCode,
     affiliateCode: f.affiliateCode,
   };
 }
@@ -215,6 +219,11 @@ export default function AdminCouponsPage() {
                     <TableCell className="pl-4">
                       <span className="font-mono font-semibold tracking-wide">{c.code}</span>
                       {c.description ? <div className="text-muted-foreground max-w-56 truncate text-xs">{c.description}</div> : null}
+                      {c.showOnHome ? (
+                        <div className="text-success inline-flex items-center gap-1 text-xs font-medium">
+                          <Home className="size-3" aria-hidden /> On the home page
+                        </div>
+                      ) : null}
                       {c.affiliateCode ? (
                         <div className="text-primary text-xs">
                           Affiliate <span className="font-mono">{c.affiliateCode}</span>
@@ -489,6 +498,19 @@ function CouponDialog({ coupon, onClose }: { coupon: AdminCoupon | null; onClose
               <FieldLabel htmlFor="c-desc">Internal note (optional)</FieldLabel>
               <Input id="c-desc" value={form.description} onChange={(e) => set("description", e.target.value)} maxLength={200} placeholder="Diwali Instagram campaign" />
             </Field>
+
+            <label className="flex items-center justify-between gap-4 rounded-xl border p-3">
+              <span>
+                <span className="block text-sm font-medium">Show on the home page</span>
+                <span className="text-muted-foreground block text-xs">
+                  {form.affiliateCode
+                    ? "Not available for an affiliate's coupon (every sale would be credited to them)."
+                    : "Advertised as an offer on the home page and the eBooks page while it can be used. Replaces any other coupon shown there."}
+                </span>
+                {errors.showOnHome?.length ? <span className="text-destructive block text-xs">{errors.showOnHome[0]}</span> : null}
+              </span>
+              <Switch checked={form.showOnHome && !form.affiliateCode} disabled={Boolean(form.affiliateCode)} onCheckedChange={(v) => set("showOnHome", v)} />
+            </label>
 
             <label className="flex items-center justify-between gap-4 rounded-xl border p-3">
               <span>

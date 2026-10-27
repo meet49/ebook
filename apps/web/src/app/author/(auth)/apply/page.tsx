@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { BadgeIndianRupee, Fingerprint, Megaphone, PenLine } from "lucide-react";
 import { AuthorApplyForm } from "@/components/author/apply-form";
 import { Logo } from "@/components/brand/logo";
@@ -21,7 +22,12 @@ export default async function AuthorApplyPage() {
       <div aria-hidden className="bg-grid pointer-events-none absolute inset-x-0 top-0 h-130" />
       <div className="relative mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
         <Logo />
-        <PreferenceControls />
+        <div className="flex items-center gap-2">
+          <Link href="/authors" className="text-muted-foreground hover:text-foreground hidden text-sm font-medium sm:inline">
+            {t.programDetails}
+          </Link>
+          <PreferenceControls />
+        </div>
       </div>
 
       <div className="relative mx-auto grid w-full max-w-6xl flex-1 gap-10 px-4 py-6 sm:px-6 sm:py-10 lg:grid-cols-[1fr_minmax(0,34rem)] lg:gap-14">

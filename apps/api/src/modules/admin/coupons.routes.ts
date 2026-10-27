@@ -38,6 +38,7 @@ async function toDtos(coupons: CouponDoc[]): Promise<AdminCoupon[]> {
     startsAt: c.startsAt?.toISOString() ?? null,
     endsAt: c.endsAt?.toISOString() ?? null,
     active: c.active,
+    showOnHome: c.showOnHome ?? false,
     affiliateCode: c.affiliateId ? (codeBy.get(c.affiliateId.toString()) ?? null) : null,
     uses: usageBy.get(c._id.toString())?.uses ?? 0,
     discountPaise: usageBy.get(c._id.toString())?.discount ?? 0,
@@ -66,8 +67,14 @@ async function values(input: CouponInputParsed) {
     startsAt: input.startsAt,
     endsAt: input.endsAt,
     active: input.active,
+    showOnHome: input.showOnHome,
     affiliateId,
   };
+}
+
+/** Only one coupon is advertised on the home page: choosing one replaces the previous. */
+async function keepOneOnHome(coupon: CouponDoc) {
+  if (coupon.showOnHome) await Coupon.updateMany({ _id: { $ne: coupon._id }, showOnHome: true }, { $set: { showOnHome: false } });
 }
 
 const duplicate = () => new HttpError(409, 'CONFLICT', 'A coupon with this code already exists', { code: ['A coupon with this code already exists'] });
@@ -88,6 +95,7 @@ adminCouponsRouter.post('/', async (req, res) => {
   const input = parse(couponInputSchema, req.body);
   if (await Coupon.exists({ code: input.code })) throw duplicate();
   const coupon = await Coupon.create({ ...(await values(input)), createdBy: req.auth!.user._id });
+  await keepOneOnHome(coupon);
   await audit({ action: 'coupon.created', entityType: 'Coupon', entityId: coupon._id, meta: { code: coupon.code }, req });
   res.status(201).json({ coupon: (await toDtos([coupon]))[0] });
 });
@@ -98,6 +106,7 @@ adminCouponsRouter.put('/:id', async (req, res) => {
   if (input.code !== coupon.code && (await Coupon.exists({ code: input.code }))) throw duplicate();
   coupon.set(await values(input));
   await coupon.save();
+  await keepOneOnHome(coupon);
   await audit({ action: 'coupon.updated', entityType: 'Coupon', entityId: coupon._id, meta: { code: coupon.code, active: coupon.active }, req });
   res.json({ coupon: (await toDtos([coupon]))[0] });
 });

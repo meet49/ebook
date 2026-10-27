@@ -74,6 +74,7 @@ Responses never include storage keys or commission settings.
 | POST | `/checkout/verify` | — | `{razorpay_order_id, razorpay_payment_id, razorpay_signature}` → HMAC check, server-side fetch of the payment (status `captured`, amount, currency, order id) → idempotent fulfilment |
 | GET | `/checkout/orders/:orderNumber` | — | Status for the confirmation page: `lines`, `membership` (a pass order), masked email, `isOwner` |
 | GET | `/checkout/orders/:orderNumber/offers` | — | Combo offers for 24 h after the order was paid (empty otherwise) |
+| GET | `/coupons/featured` | — | `{offer}`: the coupon the admin chose to show on the home page (code, discount, scope, minimum, end), or null when none can be used now. Never an affiliate's coupon |
 | GET | `/site-config` | — | Public settings for the website: `{ analytics: { gaMeasurementId } }` (set in Admin → Settings) |
 | POST | `/webhooks/razorpay` | signature | Raw body; `X-Razorpay-Signature` HMAC. Handles `payment.captured`, `order.paid`, `payment.failed`, `refund.created`, `refund.processed`, `refund.failed`. Deduplicated by `X-Razorpay-Event-Id` |
 
@@ -181,7 +182,7 @@ full refund reverses them; a refund after payment sets `clawbackRequired`.
 | Affiliates | `GET /affiliates?status`, `POST /affiliates/:id/{approve,reject,suspend,reinstate}` `{note?}` |
 | Commissions | `GET /commissions?status&affiliateId` (with totals and history), `POST /commissions/approve` `{ids}`, `POST /commissions/:id/reverse` `{note}` |
 | Payouts | `GET /payouts?status`, `GET /payouts/:id/destination` (decrypted; audited), `POST /payouts/:id/start`, `POST /payouts/:id/mark-paid` `{reference, note?}` (**requires a real transaction reference**), `POST /payouts/:id/reject` `{note}` (commissions return to payable) |
-| Coupons | `GET /coupons` (with uses and discount given), `POST /coupons`, `PUT /coupons/:id`, `DELETE /coupons/:id` (only unused coupons; else `409 COUPON_USED`, turn it off instead). `affiliateCode` ties a coupon to an affiliate |
+| Coupons | `GET /coupons` (with uses and discount given), `POST /coupons`, `PUT /coupons/:id`, `DELETE /coupons/:id` (only unused coupons; else `409 COUPON_USED`, turn it off instead). `affiliateCode` ties a coupon to an affiliate. `showOnHome` advertises it on the home page and the eBooks page (one coupon at a time; not allowed for an affiliate's coupon) |
 | Membership | `GET /membership/plans` (with passes sold and active members), `POST /membership/plans`, `PUT /membership/plans/:id`, `POST /membership/plans/:id/{publish,unpublish}`, `DELETE /membership/plans/:id` (a sold plan is archived instead) |
 | Authors | `GET /authors?status`, `POST /authors/:id/approve` `{sharePercent}` (also re-activates), `POST /authors/:id/{reject,suspend}` `{note}`, `PUT /authors/:id/share` `{sharePercent}` (future sales), `GET /authors/:id/destination` (decrypted; audited), `POST /authors/:id/payouts` `{reference, note?}` (settles all payable earnings), `GET /authors/:id/payouts` |
 | Analytics | `GET /stats?days`: revenue (gross, refunds, net), daily series, top products, customers, affiliates, author applications, commission totals, open payouts |

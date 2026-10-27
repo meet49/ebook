@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BookOpen, ChevronLeft, ChevronRight, SearchX } from "lucide-react";
 import { Suspense } from "react";
+import { OfferBanner } from "@/components/home/offer-banner";
 import { CatalogFilters } from "@/components/products/catalog-filters";
 import { ProductGrid } from "@/components/products/product-card";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { getMessages } from "@/i18n/server";
-import { getCatalog, getCategories } from "@/lib/server-api";
+import { getCatalog, getCategories, getFeaturedOffer } from "@/lib/server-api";
 import { cn } from "@/lib/utils";
 
 export async function generateMetadata({ searchParams }: PageProps<"/ebooks">): Promise<Metadata> {
@@ -48,9 +49,10 @@ export default async function EbooksPage({ searchParams }: PageProps<"/ebooks">)
   const sort = ["featured", "newest", "price_asc", "price_desc"].includes(sortParam ?? "") ? sortParam : "featured";
   const page = Math.max(1, Math.min(1000, Number(first(sp.page)) || 1));
 
-  const [catalog, categories] = await Promise.all([
+  const [catalog, categories, offer] = await Promise.all([
     getCatalog({ q, category, sort, page, pageSize: PAGE_SIZE }),
     getCategories(),
+    getFeaturedOffer(),
   ]);
   const totalPages = Math.max(1, Math.ceil(catalog.total / PAGE_SIZE));
   const filtered = Boolean(q || category);
@@ -69,6 +71,7 @@ export default async function EbooksPage({ searchParams }: PageProps<"/ebooks">)
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pt-6 pb-16 sm:px-6 sm:pt-10">
+      {offer && offer.appliesTo !== "membership" && page === 1 ? <OfferBanner offer={offer} compact /> : null}
       {/* Hero strip with search and filters */}
       <section className="from-accent/80 via-background to-background relative isolate overflow-hidden rounded-3xl border bg-linear-to-b px-4 py-8 sm:px-10 sm:py-12">
         <div aria-hidden className="bg-grid absolute inset-0 -z-10 opacity-70" />

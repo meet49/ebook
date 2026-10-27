@@ -22,6 +22,7 @@ import { adminUsersRouter } from './modules/admin/users.routes';
 import { authRouter } from './modules/auth/auth.routes';
 import { authorRouter } from './modules/authors/author.routes';
 import { checkoutRouter } from './modules/checkout/checkout.routes';
+import { handleFeaturedOffer } from './modules/checkout/offer';
 import { razorpayWebhook } from './modules/checkout/webhook';
 import { readerRouter } from './modules/library/reader.routes';
 import { meRouter } from './modules/me/me.routes';
@@ -57,6 +58,7 @@ export function createApp() {
   v1.use('/products', publicProductsRouter);
   v1.use('/checkout', checkoutRouter);
   v1.use('/membership', membershipRouter);
+  v1.get('/coupons/featured', handleFeaturedOffer);
   v1.use('/me', requireAuth, meRouter);
   v1.use('/reader', requireAuth, readerRouter);
   v1.get('/r/:code', handleReferralClick);

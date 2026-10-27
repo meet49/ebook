@@ -18,6 +18,8 @@ const couponSchema = new Schema(
     startsAt: { type: Date, default: null },
     endsAt: { type: Date, default: null },
     active: { type: Boolean, default: true },
+    /** Advertised on the home page; at most one coupon at a time. */
+    showOnHome: { type: Boolean, default: false },
     /** Sales with this coupon are credited to this affiliate. */
     affiliateId: { type: Schema.Types.ObjectId, ref: 'AffiliateProfile', default: null },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },

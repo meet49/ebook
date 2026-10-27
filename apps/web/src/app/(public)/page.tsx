@@ -19,13 +19,17 @@ import {
 } from "lucide-react";
 import type { ProductSummary } from "@ebook/shared";
 import { EarningsCalculator } from "@/components/home/earnings-calculator";
+import { AuthorsSection } from "@/components/home/authors-section";
 import { FeaturedEbooks } from "@/components/home/featured-ebooks";
 import { Hero } from "@/components/home/hero";
+import { OfferBanner } from "@/components/home/offer-banner";
+import { PassSection } from "@/components/home/pass-section";
 import { InstallAppButton } from "@/components/pwa/install-app";
 import { Button } from "@/components/ui/button";
 import { getMessages } from "@/i18n/server";
 import { absoluteUrl, jsonLd, organizationLd } from "@/lib/seo";
-import { getCatalog, getCategories } from "@/lib/server-api";
+import { isInternationalVisitor } from "@/lib/region-server";
+import { getCatalog, getCategories, getFeaturedOffer, getMembership } from "@/lib/server-api";
 import { SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
@@ -64,7 +68,14 @@ const APP_ICONS = [Download, Languages, SunMoon];
 const AFFILIATE_ICONS = [Link2, RefreshCcw, Wallet];
 
 export default async function HomePage() {
-  const [t, books, categories] = await Promise.all([getMessages(), shelfBooks(), getCategories().catch(() => [])]);
+  const [t, books, categories, offer, membership, international] = await Promise.all([
+    getMessages(),
+    shelfBooks(),
+    getCategories().catch(() => []),
+    getFeaturedOffer(),
+    getMembership(),
+    isInternationalVisitor(),
+  ]);
   const h = t.home;
 
   return (
@@ -72,7 +83,11 @@ export default async function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(siteLd) }} />
       <Hero books={books.slice(0, 3)} />
 
+      {offer ? <OfferBanner offer={offer} /> : null}
+
       <FeaturedEbooks books={books} categories={categories.slice(0, 10)} t={h.shelf} />
+
+      {membership?.plans.length ? <PassSection overview={membership} international={international} t={h.pass} days={t.membership.days} /> : null}
 
       {/* Feature bento */}
       <section className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
@@ -216,6 +231,8 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <AuthorsSection t={h.authors} />
 
       {/* FAQ */}
       <section className="mx-auto w-full max-w-3xl px-4 pb-20 sm:px-6">

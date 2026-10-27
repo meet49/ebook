@@ -173,6 +173,7 @@ export interface AdminCoupon {
   startsAt: string | null;
   endsAt: string | null;
   active: boolean;
+  showOnHome: boolean;
   affiliateCode: string | null;
   /** Paid orders that used it, and the total discount given. */
   uses: number;
@@ -264,4 +265,15 @@ export interface AdminAuthor {
   hasPayoutDetails: boolean;
   reviewNote: string | null;
   createdAt: string;
+}
+
+/** The coupon advertised on the home page, while it can be used. */
+export interface FeaturedOffer {
+  code: string;
+  type: 'percent' | 'fixed';
+  percentOff: number | null;
+  amountOffPaise: number | null;
+  appliesTo: 'books' | 'selected' | 'membership' | 'all';
+  minOrderPaise: number;
+  endsAt: string | null;
 }

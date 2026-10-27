@@ -212,3 +212,30 @@ describe('affiliate coupons', () => {
     expect((await User.findById(user._id))!.roles).toContain('affiliate');
   });
 });
+
+describe('home page offer', () => {
+  it('shows one usable, non-affiliate coupon at a time', async () => {
+    const { a: admin } = await signIn(['admin']);
+    const offer = () => request(app).get('/api/v1/coupons/featured').expect(200).then((r) => r.body.offer);
+    expect(await offer()).toBeNull();
+
+    const first = await createCoupon(admin, { code: 'DIWALI20', percentOff: 20, showOnHome: true });
+    expect(first.body.coupon.showOnHome).toBe(true);
+    expect(await offer()).toMatchObject({ code: 'DIWALI20', type: 'percent', percentOff: 20, appliesTo: 'books' });
+
+    // Choosing another one replaces it.
+    await createCoupon(admin, { code: 'NEWYEAR', percentOff: 15, showOnHome: true });
+    expect((await offer()).code).toBe('NEWYEAR');
+    expect((await Coupon.findOne({ code: 'DIWALI20' }))!.showOnHome).toBe(false);
+
+    // Expired or switched off: nothing is advertised.
+    await Coupon.updateOne({ code: 'NEWYEAR' }, { $set: { endsAt: new Date(Date.now() - 1000) } });
+    expect(await offer()).toBeNull();
+
+    const { user } = await signIn(['customer', 'affiliate']);
+    await AffiliateProfile.create({ userId: user._id, code: 'RIYA2024', status: 'approved' });
+    const affiliate = await createCoupon(admin, { code: 'RIYA10', affiliateCode: 'RIYA2024', showOnHome: true });
+    expect(affiliate.status).toBe(400);
+    expect(affiliate.body.error.details.showOnHome).toBeDefined();
+  });
+});
