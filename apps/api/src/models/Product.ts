@@ -33,6 +33,12 @@ const productSchema = new Schema(
     status: { type: String, enum: PRODUCT_STATUSES, default: 'draft' },
     /** An eBook, or a membership pass (an all-access plan sold through the same checkout). */
     kind: { type: String, enum: PRODUCT_KINDS, default: 'book' },
+    /** For membership plans: how long one pass lasts. */
+    membership: {
+      durationDays: { type: Number, default: null },
+    },
+    /** Books only: readable by members while published. */
+    includedInMembership: { type: Boolean, default: true },
     featured: { type: Boolean, default: false },
     publishedAt: { type: Date, default: null },
 

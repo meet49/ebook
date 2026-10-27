@@ -38,6 +38,9 @@ export function toSummary(p: ProductDoc): ProductSummary {
     coverUrl: publicCoverUrl(p),
     pageCount: p.pageCount,
     publishedAt: p.publishedAt?.toISOString() ?? null,
+    kind: p.kind ?? 'book',
+    membershipDays: p.kind === 'membership' ? (p.membership?.durationDays ?? null) : null,
+    includedInMembership: p.kind !== 'membership' && p.includedInMembership !== false,
   };
 }
 
@@ -84,6 +87,7 @@ export async function toAdmin(p: ProductDoc): Promise<AdminProduct> {
     intlComboPriceCents: p.intlComboPriceCents ?? null,
     status: p.status,
     featured: p.featured,
+    includedInMembership: p.includedInMembership !== false,
     publishedAt: p.publishedAt?.toISOString() ?? null,
     affiliate: {
       enabled: p.affiliate?.enabled ?? true,
@@ -144,6 +148,7 @@ export function applyInput(p: ProductDoc, input: ProductInputParsed): void {
   p.intlPriceCents = input.intlPriceCents;
   p.intlComboPriceCents = input.intlComboPriceCents;
   p.featured = input.featured;
+  p.includedInMembership = input.includedInMembership;
   p.set('affiliate', input.affiliate);
   p.previewPages = [...new Set(input.previewPages)].sort((a, b) => a - b);
   p.set('toc', input.toc);

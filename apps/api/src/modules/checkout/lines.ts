@@ -5,6 +5,8 @@ import type { OrderDoc } from '../../models/Order';
 export interface StoredLine extends OrderLine {
   productId: Types.ObjectId;
   commissionRule: { type: CommissionType; value: number } | null;
+  /** Membership pass length; null for books. */
+  membershipDays: number | null;
 }
 
 /** Every book in an order, including orders made before combos (one line from the old fields). */
@@ -18,6 +20,7 @@ export function orderLines(order: OrderDoc): StoredLine[] {
       pricePaise: l.pricePaise,
       combo: Boolean(l.combo),
       commissionRule: l.commissionRule?.type ? { type: l.commissionRule.type as CommissionType, value: l.commissionRule.value ?? 0 } : null,
+      membershipDays: l.membershipDays ?? null,
     }));
   }
   const rule = order.attribution?.rule?.type
@@ -32,6 +35,7 @@ export function orderLines(order: OrderDoc): StoredLine[] {
       pricePaise: order.amountPaise,
       combo: false,
       commissionRule: rule,
+      membershipDays: null,
     },
   ];
 }

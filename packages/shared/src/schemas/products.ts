@@ -53,6 +53,8 @@ export const productInputSchema = z
     /** Optional international combo price in US cents; otherwise the INR combo discount is applied. */
     intlComboPriceCents: paise.min(100, 'International combo price must be at least $1').nullable().default(null),
     featured: z.boolean().default(false),
+    /** Members can read this book while it is published. */
+    includedInMembership: z.boolean().default(true),
     affiliate: z
       .object({
         enabled: z.boolean(),

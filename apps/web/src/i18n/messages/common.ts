@@ -4,6 +4,7 @@ const en = {
   nav: {
     home: "Home",
     ebooks: "eBooks",
+    membership: "Pass",
     affiliates: "Affiliate program",
     library: "My library",
     signIn: "Sign in",
@@ -74,6 +75,7 @@ const en = {
       products: "eBooks",
       orders: "Orders & refunds",
       customers: "Customers",
+      membership: "Membership",
       coupons: "Coupons",
       affiliates: "Affiliates",
       commissions: "Commission ledger",
@@ -126,6 +128,7 @@ const hi: CommonMessages = {
   nav: {
     home: "होम",
     ebooks: "ई-बुक्स",
+    membership: "पास",
     affiliates: "एफ़िलिएट प्रोग्राम",
     library: "मेरी लाइब्रेरी",
     signIn: "साइन इन",
@@ -196,6 +199,7 @@ const hi: CommonMessages = {
       products: "ई-बुक्स",
       orders: "ऑर्डर और रिफ़ंड",
       customers: "ग्राहक",
+      membership: "मेंबरशिप",
       coupons: "कूपन",
       affiliates: "एफ़िलिएट",
       commissions: "कमीशन लेजर",

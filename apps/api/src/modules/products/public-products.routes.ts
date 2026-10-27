@@ -12,6 +12,8 @@ export const publicProductsRouter = Router();
 
 /** Only published products are ever visible publicly. */
 const PUBLISHED = { status: 'published' } as const;
+/** Published books, without membership plans. */
+const BOOKS = { ...PUBLISHED, kind: { $ne: 'membership' } } as const;
 
 const SORTS: Record<ProductSort, Record<string, 1 | -1>> = {
   featured: { featured: -1, publishedAt: -1, _id: -1 },
@@ -32,7 +34,7 @@ async function loadPublished(req: Request): Promise<ProductDoc> {
 
 publicProductsRouter.get('/', async (req, res) => {
   const { q, category, sort, featured, page, pageSize } = parse(catalogQuerySchema, req.query);
-  const filter: Record<string, unknown> = { ...PUBLISHED };
+  const filter: Record<string, unknown> = { ...BOOKS };
   if (category) filter.categories = category;
   if (featured !== undefined) filter.featured = featured;
   if (q) {
@@ -48,7 +50,7 @@ publicProductsRouter.get('/', async (req, res) => {
 });
 
 publicProductsRouter.get('/categories', async (_req, res) => {
-  const categories = (await Product.distinct('categories', PUBLISHED)) as string[];
+  const categories = (await Product.distinct('categories', BOOKS)) as string[];
   res.setHeader('Cache-Control', 'public, max-age=60');
   res.json({ categories: categories.filter(Boolean).sort((a, b) => a.localeCompare(b)) });
 });

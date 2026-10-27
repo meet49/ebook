@@ -59,6 +59,8 @@ const en = {
     backToStore: "Back to store",
     paid: "Payment successful!",
     paidBody: "Thank you! Your eBook is ready in your library.",
+    passPaidBody: "Thank you! Your ReadnShare Pass is active. Every included eBook is now in your library.",
+    pass: "Pass",
     pending: "Confirming your payment…",
     pendingBody:
       "This usually takes a few seconds. If money was deducted, your book will be added as soon as the bank confirms — you don't need to pay again.",
@@ -193,6 +195,8 @@ const hi: CheckoutMessages = {
     backToStore: "स्टोर पर वापस जाएँ",
     paid: "पेमेंट सफल रहा!",
     paidBody: "धन्यवाद! आपकी ई-बुक लाइब्रेरी में तैयार है।",
+    passPaidBody: "धन्यवाद! आपका ReadnShare Pass चालू हो गया है। हर शामिल ई-बुक अब आपकी लाइब्रेरी में है।",
+    pass: "पास",
     pending: "आपका पेमेंट कन्फ़र्म हो रहा है…",
     pendingBody:
       "इसमें आमतौर पर कुछ ही सेकंड लगते हैं। अगर पैसे कट गए हैं, तो बैंक के कन्फ़र्म करते ही किताब जुड़ जाएगी — दोबारा पेमेंट करने की ज़रूरत नहीं है।",

@@ -46,7 +46,7 @@ export async function handleReferralClick(req: Request, res: Response): Promise<
     res.redirect(302, '/ebooks');
     return;
   }
-  const destination = `/ebooks/${product.slug}`;
+  const destination = product.kind === 'membership' ? '/membership' : `/ebooks/${product.slug}`;
   const ua = req.get('user-agent') ?? '';
   const selfClick = req.auth && affiliate && affiliate.userId.equals(req.auth.user._id);
   if (affiliate?.status !== 'approved' || !product.affiliate?.enabled || BOT_UA.test(ua) || selfClick) {

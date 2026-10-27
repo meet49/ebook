@@ -27,6 +27,8 @@ const orderSchema = new Schema(
           displayPriceMinor: { type: Number, default: null },
           /** Coupon discount on this book, in paise (already taken off pricePaise). */
           couponDiscountPaise: { type: Number, default: 0 },
+          /** Set when this line is a membership pass: its length in days. */
+          membershipDays: { type: Number, default: null },
           /** This book's commission rule at order time; null when it pays no commission. */
           commissionRule: {
             type: new Schema({ type: { type: String, enum: ['percent', 'fixed'] }, value: Number }, { _id: false }),

@@ -1,5 +1,5 @@
 import "server-only";
-import type { Paginated, ProductDetail, ProductSummary } from "@ebook/shared";
+import type { MembershipOverview, Paginated, ProductDetail, ProductSummary } from "@ebook/shared";
 
 const API_URL = process.env.API_URL ?? "http://127.0.0.1:5000";
 
@@ -38,6 +38,11 @@ export async function getCategories(): Promise<string[]> {
 export async function getProduct(slug: string): Promise<ProductDetail | null> {
   if (!/^[a-z0-9-]{1,80}$/.test(slug)) return null;
   return (await serverGet<{ product: ProductDetail }>(`/products/${slug}`))?.product ?? null;
+}
+
+/** Membership plans and the books they include; null if the API can't be reached. */
+export async function getMembership(): Promise<MembershipOverview | null> {
+  return serverGet<MembershipOverview>("/membership").catch(() => null);
 }
 
 export interface SiteConfig {

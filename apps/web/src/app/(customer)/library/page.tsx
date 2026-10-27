@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BookMarked, BookOpen, BookOpenText, CheckCircle2, Clock, MailWarning, PlayCircle, type LucideIcon } from "lucide-react";
+import { ArrowRight, BookMarked, BookOpen, BookOpenText, CheckCircle2, Clock, MailWarning, PlayCircle, Ticket, type LucideIcon } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -63,7 +63,10 @@ export default function LibraryPage() {
     onError: (err) => toast.error(errorMessage(err)),
   });
 
-  const continueItem = data?.items.find((i) => i.progress && i.readable);
+  // The most recently opened book, bought or from the pass.
+  const continueItem = [...(data?.items ?? []), ...(data?.membershipItems ?? [])]
+    .filter((i) => i.progress && i.readable)
+    .sort((a, b) => b.progress!.lastOpenedAt.localeCompare(a.progress!.lastOpenedAt))[0];
   const firstName = user?.name.trim().split(/\s+/)[0];
   const reading = data?.items.filter((i) => i.progress && i.progress.percent < 100).length ?? 0;
   const finished = data?.items.filter((i) => i.progress && i.progress.percent >= 100).length ?? 0;
@@ -141,27 +144,33 @@ export default function LibraryPage() {
 
           {offers ? <ComboOffers items={offers.items} expiresAt={offers.expiresAt} /> : null}
 
+          {data.membership ? <PassBooks endsAt={data.membership.endsAt} items={data.membershipItems} /> : null}
+
           <ShareAndEarn books={data.items} />
 
-          <section className="space-y-5" aria-labelledby="my-books-heading">
-            <div className="flex items-baseline gap-2">
-              <h2 id="my-books-heading" className="text-xl font-semibold tracking-tight">
-                {t.books.title}
-              </h2>
-              {data.items.length > 0 && (
-                <span className="text-muted-foreground text-sm tabular-nums">({data.items.length})</span>
-              )}
-            </div>
-            {data.items.length === 0 ? (
-              <EmptyLibrary />
-            ) : (
-              <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-5">
-                {data.items.map((item) => (
-                  <OwnedBook key={item.productId} item={item} />
-                ))}
+          {data.items.length > 0 || !data.membership ? (
+            <section className="space-y-5" aria-labelledby="my-books-heading">
+              <div className="flex items-baseline gap-2">
+                <h2 id="my-books-heading" className="text-xl font-semibold tracking-tight">
+                  {t.books.title}
+                </h2>
+                {data.items.length > 0 && (
+                  <span className="text-muted-foreground text-sm tabular-nums">({data.items.length})</span>
+                )}
               </div>
-            )}
-          </section>
+              {data.items.length === 0 ? (
+                <EmptyLibrary />
+              ) : (
+                <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-5">
+                  {data.items.map((item) => (
+                    <OwnedBook key={item.productId} item={item} />
+                  ))}
+                </div>
+              )}
+            </section>
+          ) : null}
+
+          {data.membershipAvailable ? <PassUpsell /> : null}
 
           {data.explore.length > 0 && (
             <section className="space-y-5 border-t pt-10" aria-labelledby="explore-heading">
@@ -186,6 +195,61 @@ export default function LibraryPage() {
         </>
       )}
     </div>
+  );
+}
+
+/** Books the running pass opens, with when it ends and a way to extend it. */
+function PassBooks({ endsAt, items }: { endsAt: string; items: LibraryItem[] }) {
+  const t = useMessages().membership.library;
+  const locale = useIntlLocale();
+  const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(endsAt));
+  return (
+    <section className="space-y-5" aria-labelledby="pass-heading">
+      <div className="from-accent via-accent/40 to-card flex flex-col gap-4 rounded-3xl border bg-linear-to-br p-5 sm:flex-row sm:items-center sm:p-6">
+        <span className="bg-gradient-brand flex size-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-md">
+          <Ticket className="size-5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <h2 id="pass-heading" className="text-lg font-semibold tracking-tight">
+            {t.title}
+          </h2>
+          <p className="text-success text-sm font-medium">{t.activeTill(date)}</p>
+          <p className="text-muted-foreground text-sm">{t.body}</p>
+        </div>
+        <Button asChild variant="outline" className="bg-background shrink-0">
+          <Link href="/membership">{t.extend}</Link>
+        </Button>
+      </div>
+      {items.length > 0 && (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-5">
+          {items.map((item) => (
+            <OwnedBook key={item.productId} item={item} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PassUpsell() {
+  const t = useMessages().membership.library;
+  return (
+    <Link
+      href="/membership"
+      className="group bg-card hover:border-primary/40 flex flex-col gap-4 rounded-3xl border p-5 transition-colors sm:flex-row sm:items-center sm:p-6"
+    >
+      <span className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-2xl">
+        <Ticket className="size-5" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1 space-y-0.5">
+        <span className="block font-semibold tracking-tight">{t.upsellTitle}</span>
+        <span className="text-muted-foreground block text-sm">{t.upsellBody}</span>
+      </span>
+      <span className="text-primary inline-flex shrink-0 items-center gap-1 text-sm font-medium">
+        {t.upsellCta}
+        <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+      </span>
+    </Link>
   );
 }
 

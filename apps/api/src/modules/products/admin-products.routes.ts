@@ -45,7 +45,7 @@ function assertPagesExist(input: ProductInputParsed, pageCount: number): void {
 
 adminProductsRouter.get('/', async (req, res) => {
   const { q, status, page, pageSize } = parse(adminProductQuerySchema, req.query);
-  const filter: Record<string, unknown> = {};
+  const filter: Record<string, unknown> = { kind: { $ne: 'membership' } };
   if (status) filter.status = status;
   if (q) {
     const rx = new RegExp(escapeRegex(q), 'i');

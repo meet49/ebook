@@ -14,6 +14,7 @@ import { Order, type OrderDoc } from '../../models/Order';
 import { User } from '../../models/User';
 import { issueAuthToken } from '../auth/tokens';
 import { adjustCommissionForRefund, createCommissionForOrder } from '../commissions/ledger';
+import { grantPasses, revokePasses } from '../membership/passes';
 import { orderLines } from './lines';
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -71,6 +72,7 @@ export async function fulfilOrder(orderId: Types.ObjectId, payment: GatewayPayme
   // Each step below is individually idempotent, so a crash mid-way is repaired by the next event.
   await User.updateOne({ _id: order.userId }, { $addToSet: { roles: 'customer' } });
   for (const line of orderLines(order)) {
+    if (line.membershipDays) continue;
     await Entitlement.updateOne(
       { userId: order.userId, productId: line.productId },
       {
@@ -80,6 +82,7 @@ export async function fulfilOrder(orderId: Types.ObjectId, payment: GatewayPayme
       { upsert: true },
     );
   }
+  await grantPasses(order, now);
   await createCommissionForOrder(order);
   if (order.attribution?.clickId) {
     await AffiliateClick.updateOne({ _id: order.attribution.clickId, convertedOrderId: null }, { $set: { convertedOrderId: order._id } });
@@ -110,9 +113,13 @@ async function sendPurchaseEmailOnce(order: OrderDoc): Promise<void> {
   const user = await User.findById(order.userId).select('+passwordHash');
   if (!user) return;
   const lines = orderLines(order);
-  const title = lines.map((l) => l.title).filter(Boolean).join(' + ') || 'your eBook';
-  // One book opens straight in the reader; a combo opens the library with all of them.
-  const slug = lines.length === 1 ? lines[0]!.slug : undefined;
+  const title =
+    lines
+      .map((l) => (l.membershipDays ? `ReadnShare Pass: ${l.title} (${l.membershipDays} days)` : l.title))
+      .filter(Boolean)
+      .join(' + ') || 'your eBook';
+  // One book opens straight in the reader; a combo or a membership pass opens the library.
+  const slug = lines.length === 1 && !lines[0]!.membershipDays ? lines[0]!.slug : undefined;
   const token = await issueAuthToken(user._id, 'magic_login', slug ? `/read/${slug}` : '/library', 72 * 60 * 60_000);
 
   sendEmailInBackground(
@@ -128,7 +135,11 @@ async function sendPurchaseEmailOnce(order: OrderDoc): Promise<void> {
   await Notification.create({
     userId: user._id,
     type: 'purchase',
-    title: lines.length > 1 ? `${lines.length} eBooks are in your library` : `“${title}” is in your library`,
+    title: lines.some((l) => l.membershipDays)
+      ? `${title} is active`
+      : lines.length > 1
+        ? `${lines.length} eBooks are in your library`
+        : `“${title}” is in your library`,
     body: `Order ${order.orderNumber}`,
     link: slug ? `/read/${slug}` : '/library',
   });
@@ -180,6 +191,7 @@ export async function applyRefund(
       { userId: order.userId, productId: { $in: orderLines(order).map((l) => l.productId) }, orderId: order._id, status: 'active' },
       { $set: { status: 'revoked', revokedAt: new Date(), revokeReason: 'Order refunded' } },
     );
+    await revokePasses(order._id);
   }
   if (order.refundedPaise > 0) await adjustCommissionForRefund(order, actorId);
   await audit({ action: 'order.refund_recorded', entityType: 'Order', entityId: order._id, actorId, meta: { ...refund } });

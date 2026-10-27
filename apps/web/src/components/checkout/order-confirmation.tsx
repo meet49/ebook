@@ -30,6 +30,7 @@ interface OrderStatusResponse {
   status: OrderStatus;
   product: { title: string; slug: string };
   lines: OrderLine[];
+  membership?: boolean;
   amountPaise: number;
   maskedEmail: string | null;
   isOwner: boolean;
@@ -113,6 +114,9 @@ export function OrderConfirmation() {
         },
       ];
   const combo = lines.length > 1;
+  // A combo or a pass opens the library rather than one book.
+  const pass = data.membership === true;
+  const toLibrary = combo || pass;
 
   return (
     <div className="w-full space-y-6">
@@ -162,7 +166,7 @@ export function OrderConfirmation() {
             {paid ? t.paid : pending ? t.pending : t.failed}
           </h1>
           <p className="text-muted-foreground mx-auto mt-2 max-w-sm text-sm text-pretty">
-            {paid ? t.paidBody : pending ? t.pendingBody : t.failedBody}
+            {paid ? (pass ? t.passPaidBody : t.paidBody) : pending ? t.pendingBody : t.failedBody}
           </p>
         </div>
 
@@ -170,7 +174,7 @@ export function OrderConfirmation() {
           <dl className="bg-muted/40 divide-y rounded-2xl border text-sm">
             <div className="flex items-start justify-between gap-4 px-4 py-3">
               <dt className="text-muted-foreground shrink-0">
-                {combo ? messages.checkout.combo.books(lines.length) : t.book}
+                {pass ? t.pass : combo ? messages.checkout.combo.books(lines.length) : t.book}
               </dt>
               <dd className="space-y-1 text-right font-medium">
                 {lines.map((l) => (
@@ -200,9 +204,9 @@ export function OrderConfirmation() {
               size="lg"
               className="h-12 w-full rounded-full text-base shadow-lg shadow-indigo-900/15"
             >
-              <Link href={combo ? "/library" : `/read/${data.product.slug}`}>
+              <Link href={toLibrary ? "/library" : `/read/${data.product.slug}`}>
                 <BookOpen aria-hidden />{" "}
-                {combo ? messages.common.nav.library : t.startReading}
+                {toLibrary ? messages.common.nav.library : t.startReading}
               </Link>
             </Button>
           )}

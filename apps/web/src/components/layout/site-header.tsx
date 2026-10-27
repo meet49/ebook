@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookMarked, BookOpen, Home, LogIn, Megaphone, Menu, UserPlus } from "lucide-react";
+import { BookMarked, BookOpen, Home, LogIn, Megaphone, Menu, Ticket, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/brand/logo";
 import { InstallAppButton } from "@/components/pwa/install-app";
@@ -32,6 +32,7 @@ export function SiteHeader() {
 
   const nav = [
     { href: "/ebooks", label: t.ebooks, icon: BookOpen },
+    { href: "/membership", label: t.membership, icon: Ticket },
     { href: "/affiliates", label: t.affiliates, icon: Megaphone },
   ];
   const mobileNav = [

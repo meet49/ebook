@@ -90,7 +90,9 @@ export function CheckoutClient({
   };
   const left = useTimeLeft(quote?.offerExpiresAt ?? null);
 
+  const plan = product.kind === "membership" && product.membershipDays ? product.membershipDays : null;
   const included = [
+    ...(plan ? [{ icon: Sparkles, text: messages.membership.checkoutIncluded }] : []),
     { icon: Zap, text: t.included.instant },
     { icon: MonitorSmartphone, text: t.included.reader },
     { icon: Fingerprint, text: t.included.watermark },
@@ -115,7 +117,11 @@ export function CheckoutClient({
               <p className="line-clamp-3 leading-snug font-semibold">{product.title}</p>
               {product.author ? <p className="text-muted-foreground truncate text-sm">{product.author}</p> : null}
               <p className="text-muted-foreground text-xs">
-                {lines.length > 1 ? t.combo.books(lines.length) : t.itemMeta(tc.book.pages(product.pageCount))}
+                {plan
+                  ? messages.membership.checkoutMeta(messages.membership.days(plan))
+                  : lines.length > 1
+                    ? t.combo.books(lines.length)
+                    : t.itemMeta(tc.book.pages(product.pageCount))}
               </p>
             </div>
           </div>

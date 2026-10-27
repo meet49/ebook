@@ -59,6 +59,7 @@ const formSchema = z
       .trim()
       .refine((v) => v === "" || money.test(v), "Enter an amount like 4.99, or leave empty"),
     featured: z.boolean(),
+    includedInMembership: z.boolean(),
     affiliateEnabled: z.boolean(),
     commissionType: z.enum(["percent", "fixed"]),
     commissionValue: z.string().trim().regex(money, "Enter a number"),
@@ -110,6 +111,7 @@ export function productToFormValues(p?: AdminProduct): FormValues {
     intlPrice: p?.intlPriceCents != null ? paiseToRupeesString(p.intlPriceCents).replace(/\.00$/, "") : "",
     intlComboPrice: p?.intlComboPriceCents != null ? paiseToRupeesString(p.intlComboPriceCents).replace(/\.00$/, "") : "",
     featured: p?.featured ?? false,
+    includedInMembership: p?.includedInMembership ?? true,
     affiliateEnabled: p?.affiliate.enabled ?? true,
     commissionType: p?.affiliate.type ?? "percent",
     // Percent is stored in basis points (2000 = 20%), fixed in paise — both convert like rupees.
@@ -135,6 +137,7 @@ function toInput(v: z.output<typeof formSchema>): ProductInput {
     intlPriceCents: v.intlPrice ? rupeesToPaise(v.intlPrice) : null,
     intlComboPriceCents: v.intlComboPrice ? rupeesToPaise(v.intlComboPrice) : null,
     featured: v.featured,
+    includedInMembership: v.includedInMembership,
     affiliate: { enabled: v.affiliateEnabled, type: v.commissionType, value: rupeesToPaise(v.commissionValue) },
     previewPages: v.previewPages,
     toc: v.toc,
@@ -252,6 +255,16 @@ export function ProductForm({
               <Field orientation="horizontal">
                 <Switch id="featured" checked={field.value} onCheckedChange={field.onChange} />
                 <FieldLabel htmlFor="featured">Feature on the home page</FieldLabel>
+              </Field>
+            )}
+          />
+          <Controller
+            control={form.control}
+            name="includedInMembership"
+            render={({ field }) => (
+              <Field orientation="horizontal">
+                <Switch id="included-in-membership" checked={field.value} onCheckedChange={field.onChange} />
+                <FieldLabel htmlFor="included-in-membership">Included in ReadnShare Pass (members can read it)</FieldLabel>
               </Field>
             )}
           />

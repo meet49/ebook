@@ -7,7 +7,7 @@ import { Bookmark } from '../../models/Bookmark';
 import { Product, type ProductDoc } from '../../models/Product';
 import { ProductAsset } from '../../models/ProductAsset';
 import { ReadingProgress } from '../../models/ReadingProgress';
-import { findReadableProductBySlug, orderNumberFor, requireEntitlement } from './access';
+import { findReadableProductBySlug, orderNumberFor, requireReadAccess } from './access';
 import { licensedCopyKey } from './copies';
 
 export const readerRouter = Router();
@@ -38,7 +38,7 @@ async function productById(req: Request): Promise<ProductDoc> {
 readerRouter.get('/by-slug/:slug', async (req, res) => {
   const product = await findReadableProductBySlug(String(req.params.slug));
   const userId = req.auth!.user._id;
-  await requireEntitlement(userId, product);
+  await requireReadAccess(userId, product);
 
   const [progress, bookmarks] = await Promise.all([
     ReadingProgress.findOneAndUpdate(
@@ -78,15 +78,15 @@ readerRouter.get('/:productId/book', bookLimiter, async (req, res) => {
   }
   const product = await productById(req);
   const user = req.auth!.user;
-  const entitlement = await requireEntitlement(user._id, product);
-  const key = await licensedCopyKey(product, user, await orderNumberFor(entitlement.orderId));
+  const access = await requireReadAccess(user._id, product);
+  const key = await licensedCopyKey(product, user, await orderNumberFor(access.orderId));
   res.setHeader('Content-Disposition', 'inline');
   await sendObject(res, key, 'application/octet-stream', 'private, no-store');
 });
 
 readerRouter.get('/:productId/cover', async (req, res) => {
   const product = await productById(req);
-  await requireEntitlement(req.auth!.user._id, product);
+  await requireReadAccess(req.auth!.user._id, product);
   const asset = product.coverAssetId ? await ProductAsset.findById(product.coverAssetId) : null;
   if (!asset) throw notFound('No cover');
   await sendObject(res, asset.storageKey, 'image/webp', 'private, max-age=86400');

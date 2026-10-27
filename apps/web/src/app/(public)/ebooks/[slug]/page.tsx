@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -16,6 +16,7 @@ import {
   Plus,
   ShieldCheck,
   Sparkles,
+  Ticket,
   Zap,
 } from "lucide-react";
 import { formatINR, formatUSD, intlComboCents } from "@ebook/shared";
@@ -27,7 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { getMessages } from "@/i18n/server";
 import { isInternationalVisitor } from "@/lib/region-server";
 import { absoluteUrl, jsonLd, organizationLd } from "@/lib/seo";
-import { getCatalog, getProduct } from "@/lib/server-api";
+import { getCatalog, getMembership, getProduct } from "@/lib/server-api";
 
 export async function generateMetadata({ params }: PageProps<"/ebooks/[slug]">): Promise<Metadata> {
   const { slug } = await params;
@@ -60,8 +61,11 @@ export default async function ProductPage({ params }: PageProps<"/ebooks/[slug]"
   const { slug } = await params;
   const product = await getProduct(slug);
   if (!product) notFound();
+  if (product.kind === "membership") permanentRedirect("/membership");
 
   const messages = await getMessages();
+  // "Included in ReadnShare Pass" only while a plan is on sale.
+  const passOnSale = product.includedInMembership && Boolean((await getMembership())?.plans.length);
   const t = messages.product;
   const tc = messages.common;
   // Visitors outside India see the international (USD) price where the book has one.
@@ -220,6 +224,18 @@ export default async function ProductPage({ params }: PageProps<"/ebooks/[slug]"
               <p className="text-muted-foreground mt-3 flex items-start justify-center gap-1.5 text-center text-xs">
                 <ShieldCheck className="mt-px size-3.5 shrink-0" aria-hidden /> {t.securePay}
               </p>
+              {passOnSale && (
+                <Link
+                  href="/membership"
+                  className="bg-primary/5 border-primary/20 hover:bg-primary/10 mt-4 flex items-center gap-3 rounded-2xl border p-3 transition-colors"
+                >
+                  <Ticket className="text-primary size-5 shrink-0" aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">{messages.membership.bookBadge}</span>
+                    <span className="text-primary text-xs font-medium">{messages.membership.bookBadgeCta} →</span>
+                  </span>
+                </Link>
+              )}
               <Separator className="my-5" />
               <ul className="space-y-4">
                 {trust.map(({ icon: Icon, title, body }) => (

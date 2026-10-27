@@ -74,7 +74,7 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
   const gw = await getGateway(); // 503 if payments are not configured
   const { user, signedIn } = await resolveBuyer(req.auth, input.name, input.email);
 
-  if (await Entitlement.exists({ userId: user._id, productId: product._id, status: 'active' })) {
+  if (product.kind !== 'membership' && (await Entitlement.exists({ userId: user._id, productId: product._id, status: 'active' }))) {
     throw new HttpError(
       409,
       'ALREADY_OWNED',
@@ -127,6 +127,7 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
       combo: l.combo,
       displayPriceMinor: l.displayPriceMinor,
       couponDiscountPaise: l.couponDiscountPaise ?? 0,
+      membershipDays: l.product.kind === 'membership' ? (l.product.membership?.durationDays ?? null) : null,
       commissionRule: l.product.affiliate?.enabled
         ? { type: l.product.affiliate.type ?? 'percent', value: l.product.affiliate.value ?? 0 }
         : null,
@@ -279,6 +280,8 @@ checkoutRouter.get('/orders/:orderNumber', async (req, res) => {
     status: order.status,
     product: order.productSnapshot,
     lines: orderLines(order).map(publicLine),
+    /** A membership pass order: its books are in the library, not one reader link. */
+    membership: orderLines(order).some((l) => Boolean(l.membershipDays)),
     amountPaise: order.amountPaise,
     maskedEmail: local ? `${local.slice(0, 2)}${'•'.repeat(Math.max(1, local.length - 2))}@${domain}` : null,
     isOwner: Boolean(req.auth && req.auth.user._id.equals(order.userId)),

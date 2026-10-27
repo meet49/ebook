@@ -21,6 +21,7 @@ import { AffiliateProduct } from '../../models/AffiliateProduct';
 import { AffiliateProfile, type AffiliateProfileDoc } from '../../models/AffiliateProfile';
 import { Commission } from '../../models/Commission';
 import { Coupon } from '../../models/Coupon';
+import { MembershipPass } from '../../models/MembershipPass';
 import { Entitlement } from '../../models/Entitlement';
 import { Order } from '../../models/Order';
 import { Payout } from '../../models/Payout';
@@ -120,7 +121,9 @@ const joinSchema = z.object({
 affiliateRouter.post('/join', requireAuth, sensitiveLimiter, async (req, res) => {
   parse(joinSchema, req.body);
   const user = req.auth!.user;
-  const bought = await Entitlement.exists({ userId: user._id, status: 'active', orderId: { $ne: null } });
+  const bought =
+    (await Entitlement.exists({ userId: user._id, status: 'active', orderId: { $ne: null } })) ??
+    (await MembershipPass.exists({ userId: user._id, status: 'active' }));
   if (!bought) throw forbidden('Buy an eBook first to join instantly, or apply with the affiliate form.');
 
   let profile = await AffiliateProfile.findOne({ userId: user._id });

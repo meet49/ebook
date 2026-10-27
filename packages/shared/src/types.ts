@@ -1,4 +1,4 @@
-import type { CommissionType, ProductStatus, Role, UserStatus } from './enums';
+import type { CommissionType, ProductKind, ProductStatus, Role, UserStatus } from './enums';
 
 export interface PublicUser {
   id: string;
@@ -54,6 +54,12 @@ export interface ProductSummary {
   coverUrl: string | null;
   pageCount: number;
   publishedAt: string | null;
+  /** A book, or a membership plan (sold through the same checkout). */
+  kind: ProductKind;
+  /** Plans only: days one pass lasts. */
+  membershipDays: number | null;
+  /** Books only: members can read it. */
+  includedInMembership: boolean;
 }
 
 export interface ProductDetail extends ProductSummary {
@@ -85,6 +91,7 @@ export interface AdminProduct {
   intlComboPriceCents: number | null;
   status: ProductStatus;
   featured: boolean;
+  includedInMembership: boolean;
   publishedAt: string | null;
   affiliate: { enabled: boolean; type: CommissionType; value: number };
   pageCount: number;
@@ -166,5 +173,36 @@ export interface AdminCoupon {
   /** Paid orders that used it, and the total discount given. */
   uses: number;
   discountPaise: number;
+  createdAt: string;
+}
+
+/** A membership plan on the public membership page. */
+export interface MembershipPlan {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  benefits: string[];
+  durationDays: number;
+  pricePaise: number;
+  salePricePaise: number | null;
+  effectivePricePaise: number;
+  discountPercent: number;
+  intlPriceCents: number | null;
+  featured: boolean;
+}
+
+export interface MembershipOverview {
+  plans: MembershipPlan[];
+  /** Published books members can read, and a few of them to show. */
+  bookCount: number;
+  books: ProductSummary[];
+}
+
+export interface AdminMembershipPlan extends MembershipPlan {
+  status: ProductStatus;
+  affiliate: { enabled: boolean; type: CommissionType; value: number };
+  /** Paid passes sold with this plan. */
+  sold: number;
   createdAt: string;
 }

@@ -29,7 +29,8 @@ export interface LibraryItem {
   coverUrl: string | null;
   pageCount: number;
   readable: boolean;
-  purchasedAt: string;
+  /** Null for books opened by the membership. */
+  purchasedAt: string | null;
   progress: { page: number; percent: number; lastOpenedAt: string } | null;
 }
 
@@ -58,7 +59,14 @@ export function useManifest(slug: string) {
 export function useLibrary() {
   return useQuery({
     queryKey: ["me", "library"],
-    queryFn: () => api<{ items: LibraryItem[]; explore: ProductSummary[] }>("/me/library"),
+    queryFn: () =>
+      api<{
+        items: LibraryItem[];
+        membership: { endsAt: string } | null;
+        membershipItems: LibraryItem[];
+        membershipAvailable: boolean;
+        explore: ProductSummary[];
+      }>("/me/library"),
   });
 }
 
