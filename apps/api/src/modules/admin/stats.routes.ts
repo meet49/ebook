@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { parse } from '../../middleware/validate';
 import { AffiliateProfile } from '../../models/AffiliateProfile';
 import { AuditLog } from '../../models/AuditLog';
+import { AuthorProfile } from '../../models/AuthorProfile';
 import { Commission } from '../../models/Commission';
 import { Order } from '../../models/Order';
 import { Payout } from '../../models/Payout';
@@ -20,7 +21,7 @@ adminStatsRouter.get('/stats', async (req, res) => {
   await promotePayableCommissions();
   const since = new Date(Date.now() - days * 86_400_000);
 
-  const [revenue, daily, topProducts, customers, affiliates, pendingAffiliates, commissions, openPayouts, products] = await Promise.all([
+  const [revenue, daily, topProducts, customers, affiliates, pendingAffiliates, commissions, openPayouts, products, pendingAuthors] = await Promise.all([
     Order.aggregate<{ gross: number; refunded: number; orders: number; affiliateOrders: number }>([
       { $match: { status: { $in: SOLD }, paidAt: { $gte: since } } },
       {
@@ -84,7 +85,8 @@ adminStatsRouter.get('/stats', async (req, res) => {
     AffiliateProfile.countDocuments({ status: 'pending' }),
     Commission.aggregate<{ _id: string; amount: number }>([{ $group: { _id: '$status', amount: { $sum: '$amountPaise' } } }]),
     Payout.countDocuments({ status: { $in: ['requested', 'processing'] } }),
-    Product.aggregate<{ _id: string; n: number }>([{ $group: { _id: '$status', n: { $sum: 1 } } }]),
+    Product.aggregate<{ _id: string; n: number }>([{ $match: { kind: { $ne: 'membership' } } }, { $group: { _id: '$status', n: { $sum: 1 } } }]),
+    AuthorProfile.countDocuments({ status: 'pending' }),
   ]);
 
   const r = revenue[0] ?? { gross: 0, refunded: 0, orders: 0, affiliateOrders: 0 };
@@ -101,6 +103,7 @@ adminStatsRouter.get('/stats', async (req, res) => {
     topProducts: topProducts.map((p) => ({ productId: String(p._id), title: p.title, orders: p.orders, revenuePaise: Math.round(p.revenue) })),
     customers,
     affiliates: { approved: affiliates, pending: pendingAffiliates },
+    authors: { pending: pendingAuthors },
     commissions: Object.fromEntries(commissions.map((c) => [c._id, c.amount])),
     openPayouts,
     products: Object.fromEntries(products.map((p) => [p._id, p.n])),

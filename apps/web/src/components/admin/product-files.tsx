@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Spinner } from "@/components/ui/spinner";
 import { PdfPageImage } from "@/components/products/pdf-page-image";
 import { Skeleton } from "@/components/ui/skeleton";
-import { adminPdfUrl, useProductAction, useSetProductCache } from "@/lib/admin-products";
+import { adminPdfUrl, useProductAction, useSetProductCache, type ProductsBase } from "@/lib/admin-products";
 import { usePdfDocument } from "@/lib/pdf-client";
 import { errorMessage } from "@/lib/api";
 import { uploadFile } from "@/lib/upload";
@@ -29,13 +29,13 @@ function Progress({ value }: { value: number }) {
   );
 }
 
-function useUploader(productId: string, kind: "cover" | "pdf") {
-  const setCache = useSetProductCache();
+function useUploader(productId: string, kind: "cover" | "pdf", base: ProductsBase) {
+  const setCache = useSetProductCache(base);
   const [progress, setProgress] = useState<number | null>(null);
   const upload = async (file: File) => {
     setProgress(0);
     try {
-      const { product } = await uploadFile<{ product: AdminProduct }>(`/admin/products/${productId}/${kind}`, file, setProgress);
+      const { product } = await uploadFile<{ product: AdminProduct }>(`${base}/${productId}/${kind}`, file, setProgress);
       setCache(product);
       toast.success(kind === "cover" ? "Cover updated" : "PDF uploaded — reading pages…");
     } catch (err) {
@@ -47,10 +47,10 @@ function useUploader(productId: string, kind: "cover" | "pdf") {
   return { progress, upload };
 }
 
-export function ProductFiles({ product }: { product: AdminProduct }) {
-  const cover = useUploader(product.id, "cover");
-  const pdf = useUploader(product.id, "pdf");
-  const action = useProductAction(product.id);
+export function ProductFiles({ product, base = "/admin/products" }: { product: AdminProduct; base?: ProductsBase }) {
+  const cover = useUploader(product.id, "cover", base);
+  const pdf = useUploader(product.id, "pdf", base);
+  const action = useProductAction(product.id, base);
   const coverInput = useRef<HTMLInputElement>(null);
   const pdfInput = useRef<HTMLInputElement>(null);
   const [viewer, setViewer] = useState(false);
@@ -152,15 +152,25 @@ export function ProductFiles({ product }: { product: AdminProduct }) {
         </CardContent>
       </Card>
 
-      {product.pageCount > 0 && <PageViewer product={product} open={viewer} onOpenChange={setViewer} />}
+      {product.pageCount > 0 && <PageViewer product={product} base={base} open={viewer} onOpenChange={setViewer} />}
     </div>
   );
 }
 
-function PageViewer({ product, open, onOpenChange }: { product: AdminProduct; open: boolean; onOpenChange: (o: boolean) => void }) {
+function PageViewer({
+  product,
+  base,
+  open,
+  onOpenChange,
+}: {
+  product: AdminProduct;
+  base: ProductsBase;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
   const [page, setPage] = useState(1);
   // Loaded only while the viewer is open.
-  const { doc } = usePdfDocument(open ? adminPdfUrl(product.id, product.updatedAt) : null);
+  const { doc } = usePdfDocument(open ? adminPdfUrl(product.id, product.updatedAt, base) : null);
   const last = product.pageCount;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

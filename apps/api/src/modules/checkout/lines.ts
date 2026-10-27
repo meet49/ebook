@@ -7,6 +7,9 @@ export interface StoredLine extends OrderLine {
   commissionRule: { type: CommissionType; value: number } | null;
   /** Membership pass length; null for books. */
   membershipDays: number | null;
+  /** Marketplace author and their share, snapshotted at order time. */
+  authorProfileId: Types.ObjectId | null;
+  authorSharePercent: number | null;
 }
 
 /** Every book in an order, including orders made before combos (one line from the old fields). */
@@ -21,6 +24,8 @@ export function orderLines(order: OrderDoc): StoredLine[] {
       combo: Boolean(l.combo),
       commissionRule: l.commissionRule?.type ? { type: l.commissionRule.type as CommissionType, value: l.commissionRule.value ?? 0 } : null,
       membershipDays: l.membershipDays ?? null,
+      authorProfileId: l.authorProfileId ?? null,
+      authorSharePercent: l.authorSharePercent ?? null,
     }));
   }
   const rule = order.attribution?.rule?.type
@@ -36,6 +41,8 @@ export function orderLines(order: OrderDoc): StoredLine[] {
       combo: false,
       commissionRule: rule,
       membershipDays: null,
+      authorProfileId: null,
+      authorSharePercent: null,
     },
   ];
 }

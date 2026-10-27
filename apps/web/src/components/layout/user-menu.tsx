@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookMarked, LayoutDashboard, LogOut, Megaphone, Settings, Shield } from "lucide-react";
+import { BookMarked, LayoutDashboard, LogOut, Megaphone, PenLine, Settings, Shield } from "lucide-react";
 import type { PublicUser } from "@ebook/shared";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,13 @@ export function UserMenu({ user, afterLogout = "/" }: { user: PublicUser; afterL
             </Link>
           </DropdownMenuItem>
         )}
+        {hasRole(user, "author") && (
+          <DropdownMenuItem asChild>
+            <Link href="/author">
+              <PenLine /> {t.author}
+            </Link>
+          </DropdownMenuItem>
+        )}
         {hasRole(user, "admin") && (
           <DropdownMenuItem asChild>
             <Link href="/admin">
@@ -76,7 +83,7 @@ export function UserMenu({ user, afterLogout = "/" }: { user: PublicUser; afterL
             </Link>
           </DropdownMenuItem>
         )}
-        {!hasRole(user, "customer") && !hasRole(user, "affiliate") && !hasRole(user, "admin") && (
+        {!hasRole(user, "customer") && !hasRole(user, "affiliate") && !hasRole(user, "author") && !hasRole(user, "admin") && (
           <DropdownMenuItem disabled>
             <LayoutDashboard /> {t.noDashboards}
           </DropdownMenuItem>

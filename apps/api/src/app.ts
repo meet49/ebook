@@ -11,6 +11,7 @@ import { errorHandler, notFoundHandler } from './middleware/error';
 import { verifyOrigin } from './middleware/origin';
 import { globalLimiter } from './middleware/rateLimit';
 import { adminAffiliatesRouter, adminCommissionsRouter, adminPayoutsRouter } from './modules/admin/affiliates.routes';
+import { adminAuthorsRouter } from './modules/admin/authors.routes';
 import { adminCouponsRouter } from './modules/admin/coupons.routes';
 import { adminOrdersRouter } from './modules/admin/orders.routes';
 import { adminSettingsRouter } from './modules/admin/settings.routes';
@@ -19,6 +20,7 @@ import { affiliateRouter } from './modules/affiliates/affiliate.routes';
 import { handleReferralClick } from './modules/affiliates/attribution';
 import { adminUsersRouter } from './modules/admin/users.routes';
 import { authRouter } from './modules/auth/auth.routes';
+import { authorRouter } from './modules/authors/author.routes';
 import { checkoutRouter } from './modules/checkout/checkout.routes';
 import { razorpayWebhook } from './modules/checkout/webhook';
 import { readerRouter } from './modules/library/reader.routes';
@@ -64,6 +66,7 @@ export function createApp() {
     res.json(await getPublicSiteConfig());
   });
   v1.use('/affiliate', affiliateRouter);
+  v1.use('/author', authorRouter);
   v1.use('/admin/users', requireRole('admin'), adminUsersRouter);
   v1.use('/admin/products', requireRole('admin'), adminProductsRouter);
   v1.use('/admin/orders', requireRole('admin'), adminOrdersRouter);
@@ -73,6 +76,7 @@ export function createApp() {
   v1.use('/admin/settings', requireRole('admin'), adminSettingsRouter);
   v1.use('/admin/coupons', requireRole('admin'), adminCouponsRouter);
   v1.use('/admin/membership', requireRole('admin'), adminMembershipRouter);
+  v1.use('/admin/authors', requireRole('admin'), adminAuthorsRouter);
   v1.use('/admin', requireRole('admin'), adminStatsRouter);
   app.use('/api/v1', v1);
 

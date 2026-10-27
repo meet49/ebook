@@ -10,12 +10,14 @@ import { issueAuthToken } from './tokens';
 const PORTAL_ROLE: Record<Portal, Role> = {
   customer: 'customer',
   affiliate: 'affiliate',
+  author: 'author',
   admin: 'admin',
 };
 
 const PORTAL_LABEL: Record<Portal, string> = {
   customer: 'reader',
   affiliate: 'affiliate',
+  author: 'author',
   admin: 'admin',
 };
 

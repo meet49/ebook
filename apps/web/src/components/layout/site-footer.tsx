@@ -21,6 +21,8 @@ export async function SiteFooter() {
         { href: "/affiliates", label: t.nav.affiliates },
         { href: "/affiliate/apply", label: t.footer.apply },
         { href: "/affiliate/login", label: t.footer.affiliateSignIn },
+        { href: "/author/apply", label: t.footer.publish },
+        { href: "/author/login", label: t.footer.authorSignIn },
       ],
     },
     {

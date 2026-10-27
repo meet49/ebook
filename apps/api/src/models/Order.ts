@@ -29,6 +29,9 @@ const orderSchema = new Schema(
           couponDiscountPaise: { type: Number, default: 0 },
           /** Set when this line is a membership pass: its length in days. */
           membershipDays: { type: Number, default: null },
+          /** A marketplace author's book: the author and their share at order time. */
+          authorProfileId: { type: Schema.Types.ObjectId, ref: 'AuthorProfile', default: null },
+          authorSharePercent: { type: Number, default: null },
           /** This book's commission rule at order time; null when it pays no commission. */
           commissionRule: {
             type: new Schema({ type: { type: String, enum: ['percent', 'fixed'] }, value: Number }, { _id: false }),

@@ -67,12 +67,14 @@ export function useLogout() {
 export const PORTAL_HOME: Record<Portal, string> = {
   customer: "/library",
   affiliate: "/affiliate",
+  author: "/author",
   admin: "/admin",
 };
 
 export const PORTAL_LOGIN: Record<Portal, string> = {
   customer: "/login",
   affiliate: "/affiliate/login",
+  author: "/author/login",
   admin: "/admin/login",
 };
 

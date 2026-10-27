@@ -160,10 +160,16 @@ export function ProductForm({
   product,
   submitLabel,
   onSubmit,
+  variant = "admin",
+  disabled = false,
 }: {
   product?: AdminProduct;
   submitLabel: string;
   onSubmit: (input: ProductInput) => Promise<unknown>;
+  /** Authors edit the book itself; featuring, the pass and commission stay with the admin. */
+  variant?: "admin" | "author";
+  /** Read-only, e.g. while an author's book is in review. */
+  disabled?: boolean;
 }) {
   const form = useForm<FormValues, unknown, z.output<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -248,26 +254,30 @@ export function ProductForm({
           <FormField control={form.control} name="categoriesText" label="Categories" description="Comma-separated, e.g. Productivity, Career.">
             {({ field, id, invalid }) => <Input id={id} aria-invalid={invalid} {...field} />}
           </FormField>
-          <Controller
-            control={form.control}
-            name="featured"
-            render={({ field }) => (
-              <Field orientation="horizontal">
-                <Switch id="featured" checked={field.value} onCheckedChange={field.onChange} />
-                <FieldLabel htmlFor="featured">Feature on the home page</FieldLabel>
-              </Field>
-            )}
-          />
-          <Controller
-            control={form.control}
-            name="includedInMembership"
-            render={({ field }) => (
-              <Field orientation="horizontal">
-                <Switch id="included-in-membership" checked={field.value} onCheckedChange={field.onChange} />
-                <FieldLabel htmlFor="included-in-membership">Included in ReadnShare Pass (members can read it)</FieldLabel>
-              </Field>
-            )}
-          />
+          {variant === "admin" && (
+            <>
+              <Controller
+                control={form.control}
+                name="featured"
+                render={({ field }) => (
+                  <Field orientation="horizontal">
+                    <Switch id="featured" checked={field.value} onCheckedChange={field.onChange} />
+                    <FieldLabel htmlFor="featured">Feature on the home page</FieldLabel>
+                  </Field>
+                )}
+              />
+              <Controller
+                control={form.control}
+                name="includedInMembership"
+                render={({ field }) => (
+                  <Field orientation="horizontal">
+                    <Switch id="included-in-membership" checked={field.value} onCheckedChange={field.onChange} />
+                    <FieldLabel htmlFor="included-in-membership">Included in ReadnShare Pass (members can read it)</FieldLabel>
+                  </Field>
+                )}
+              />
+            </>
+          )}
         </FieldGroup>
       </Section>
 
@@ -310,55 +320,57 @@ export function ProductForm({
         </div>
       </Section>
 
-      <Section title="Affiliate commission" description="Paid on verified sales only, never on clicks.">
-        <FieldGroup>
-          <Controller
-            control={form.control}
-            name="affiliateEnabled"
-            render={({ field }) => (
-              <Field orientation="horizontal">
-                <Switch id="affiliateEnabled" checked={field.value} onCheckedChange={field.onChange} />
-                <FieldLabel htmlFor="affiliateEnabled">Affiliates can promote this eBook</FieldLabel>
-              </Field>
+      {variant === "admin" && (
+        <Section title="Affiliate commission" description="Paid on verified sales only, never on clicks.">
+          <FieldGroup>
+            <Controller
+              control={form.control}
+              name="affiliateEnabled"
+              render={({ field }) => (
+                <Field orientation="horizontal">
+                  <Switch id="affiliateEnabled" checked={field.value} onCheckedChange={field.onChange} />
+                  <FieldLabel htmlFor="affiliateEnabled">Affiliates can promote this eBook</FieldLabel>
+                </Field>
+              )}
+            />
+            {values.affiliateEnabled && (
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Controller
+                  control={form.control}
+                  name="commissionType"
+                  render={({ field }) => (
+                    <Field>
+                      <FieldLabel htmlFor="commissionType">Commission type</FieldLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger id="commissionType" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percent">Percentage of sale</SelectItem>
+                          <SelectItem value="fixed">Fixed amount</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="commissionValue"
+                  label={values.commissionType === "percent" ? "Commission (%)" : "Commission (₹)"}
+                >
+                  {({ field, id, invalid }) => <Input id={id} inputMode="decimal" aria-invalid={invalid} {...field} />}
+                </FormField>
+              </div>
             )}
-          />
-          {values.affiliateEnabled && (
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Controller
-                control={form.control}
-                name="commissionType"
-                render={({ field }) => (
-                  <Field>
-                    <FieldLabel htmlFor="commissionType">Commission type</FieldLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger id="commissionType" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="percent">Percentage of sale</SelectItem>
-                        <SelectItem value="fixed">Fixed amount</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="commissionValue"
-                label={values.commissionType === "percent" ? "Commission (%)" : "Commission (₹)"}
-              >
-                {({ field, id, invalid }) => <Input id={id} inputMode="decimal" aria-invalid={invalid} {...field} />}
-              </FormField>
-            </div>
-          )}
-          {values.affiliateEnabled && preview && (
-            <p className="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-sm">
-              On a sale at {formatINR(preview.charged)} the affiliate earns <strong className="text-foreground">{formatINR(preview.commission)}</strong>,
-              leaving {formatINR(preview.charged - preview.commission)} before other expenses.
-            </p>
-          )}
-        </FieldGroup>
-      </Section>
+            {values.affiliateEnabled && preview && (
+              <p className="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-sm">
+                On a sale at {formatINR(preview.charged)} the affiliate earns <strong className="text-foreground">{formatINR(preview.commission)}</strong>,
+                leaving {formatINR(preview.charged - preview.commission)} before other expenses.
+              </p>
+            )}
+          </FieldGroup>
+        </Section>
+      )}
 
       <Section title="Table of contents" description="Filled automatically from the PDF's bookmarks when available. Prefix sub-sections with “— ”.">
         <div className="space-y-2">
@@ -405,7 +417,7 @@ export function ProductForm({
       </Section>
 
       <div className="bg-background/90 sticky bottom-0 z-10 -mx-4 flex justify-end gap-2 border-t px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
+        <Button type="submit" size="lg" disabled={disabled || form.formState.isSubmitting}>
           {form.formState.isSubmitting ? <Spinner /> : null}
           {submitLabel}
         </Button>

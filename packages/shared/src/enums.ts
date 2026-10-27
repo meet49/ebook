@@ -1,14 +1,15 @@
-export const ROLES = ['customer', 'affiliate', 'admin'] as const;
+export const ROLES = ['customer', 'affiliate', 'author', 'admin'] as const;
 export type Role = (typeof ROLES)[number];
 
 /** Each login screen is bound to one role. */
-export const PORTALS = ['customer', 'affiliate', 'admin'] as const;
+export const PORTALS = ['customer', 'affiliate', 'author', 'admin'] as const;
 export type Portal = (typeof PORTALS)[number];
 
 export const USER_STATUSES = ['active', 'suspended'] as const;
 export type UserStatus = (typeof USER_STATUSES)[number];
 
-export const PRODUCT_STATUSES = ['draft', 'published', 'unpublished', 'archived'] as const;
+/** in_review: an author's book waiting for an admin to publish it or ask for changes. */
+export const PRODUCT_STATUSES = ['draft', 'in_review', 'published', 'unpublished', 'archived'] as const;
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 
 export const COMMISSION_TYPES = ['percent', 'fixed'] as const;
@@ -19,6 +20,13 @@ export type AssetKind = (typeof ASSET_KINDS)[number];
 
 export const AFFILIATE_STATUSES = ['pending', 'approved', 'rejected', 'suspended'] as const;
 export type AffiliateStatus = (typeof AFFILIATE_STATUSES)[number];
+
+export const AUTHOR_STATUSES = ['pending', 'approved', 'rejected', 'suspended'] as const;
+export type AuthorStatus = (typeof AUTHOR_STATUSES)[number];
+
+/** pending: in the refund hold · payable: owed · paid · reversed: refunded before payment. */
+export const AUTHOR_EARNING_STATUSES = ['pending', 'payable', 'paid', 'reversed'] as const;
+export type AuthorEarningStatus = (typeof AUTHOR_EARNING_STATUSES)[number];
 
 export const ORDER_STATUSES = [
   'created',

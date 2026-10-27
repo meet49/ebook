@@ -39,6 +39,13 @@ const productSchema = new Schema(
     },
     /** Books only: readable by members while published. */
     includedInMembership: { type: Boolean, default: true },
+    /** Set for books written by a marketplace author (who earns a share of each sale). */
+    authorProfileId: { type: Schema.Types.ObjectId, ref: 'AuthorProfile', default: null },
+    /** An author's submission for review, and the admin's note when they asked for changes. */
+    review: {
+      submittedAt: { type: Date, default: null },
+      note: { type: String, default: null },
+    },
     featured: { type: Boolean, default: false },
     publishedAt: { type: Date, default: null },
 
@@ -78,6 +85,7 @@ productSchema.index({ slug: 1 }, { unique: true });
 productSchema.index({ status: 1, featured: -1, publishedAt: -1 });
 productSchema.index({ categories: 1 });
 productSchema.index({ status: 1, effectivePricePaise: 1 });
+productSchema.index({ authorProfileId: 1, updatedAt: -1 });
 
 productSchema.pre('validate', function () {
   this.effectivePricePaise = effectivePricePaise(this);

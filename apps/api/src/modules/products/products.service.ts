@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { slugify, type AdminProduct, type ProductDetail, type ProductInputParsed, type ProductSummary } from '@ebook/shared';
 import { conflict } from '../../lib/errors';
+import { AuthorProfile } from '../../models/AuthorProfile';
 import { Product, type ProductDoc } from '../../models/Product';
 import { ProductAsset } from '../../models/ProductAsset';
 
@@ -10,8 +11,11 @@ export function publicCoverUrl(p: ProductDoc): string | null {
   return p.coverAssetId ? `${API}/products/${p.slug}/cover?v=${p.coverAssetId.toString()}` : null;
 }
 
-export function adminCoverUrl(p: ProductDoc): string | null {
-  return p.coverAssetId ? `${API}/admin/products/${p._id.toString()}/cover?v=${p.coverAssetId.toString()}` : null;
+/** Where an editor's API serves its books: the admin's, or an author's own. */
+export type EditorBase = '/admin/products' | '/author/products';
+
+export function adminCoverUrl(p: ProductDoc, base: EditorBase = '/admin/products'): string | null {
+  return p.coverAssetId ? `${API}${base}/${p._id.toString()}/cover?v=${p.coverAssetId.toString()}` : null;
 }
 
 function discountPercent(p: ProductDoc): number {
@@ -67,8 +71,11 @@ export function publishBlockers(p: ProductDoc): string[] {
   return blockers;
 }
 
-export async function toAdmin(p: ProductDoc): Promise<AdminProduct> {
-  const pdf = p.pdfAssetId ? await ProductAsset.findById(p.pdfAssetId).lean() : null;
+export async function toAdmin(p: ProductDoc, base: EditorBase = '/admin/products'): Promise<AdminProduct> {
+  const [pdf, author] = await Promise.all([
+    p.pdfAssetId ? ProductAsset.findById(p.pdfAssetId).lean() : null,
+    p.authorProfileId ? AuthorProfile.findById(p.authorProfileId).select('penName').lean() : null,
+  ]);
   return {
     id: p._id.toString(),
     slug: p.slug,
@@ -97,7 +104,7 @@ export async function toAdmin(p: ProductDoc): Promise<AdminProduct> {
     pageCount: p.pageCount,
     toc: p.toc.map((t) => ({ title: t.title ?? '', page: t.page ?? 1 })),
     previewPages: p.previewPages,
-    coverUrl: adminCoverUrl(p),
+    coverUrl: adminCoverUrl(p, base),
     pdf: pdf
       ? { filename: pdf.originalFilename ?? 'ebook.pdf', sizeBytes: pdf.sizeBytes, uploadedAt: pdf.createdAt.toISOString() }
       : null,
@@ -108,6 +115,8 @@ export async function toAdmin(p: ProductDoc): Promise<AdminProduct> {
       total: p.processing?.total ?? 0,
     },
     publishBlockers: publishBlockers(p),
+    authorProfile: author ? { id: author._id.toString(), penName: author.penName } : null,
+    reviewNote: p.review?.note ?? null,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   };

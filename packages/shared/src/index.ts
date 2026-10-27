@@ -6,3 +6,4 @@ export * from './schemas/products';
 export * from './schemas/affiliate';
 export * from './schemas/coupons';
 export * from './schemas/membership';
+export * from './schemas/authors';

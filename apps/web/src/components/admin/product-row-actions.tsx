@@ -26,7 +26,7 @@ export function ProductRowActions({ product: p, className }: { product: AdminPro
   const action = useProductAction(p.id);
   const remove = useDeleteProduct();
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const canPublish = p.status === "draft" || p.status === "unpublished";
+  const canPublish = p.status === "draft" || p.status === "unpublished" || p.status === "in_review";
   const blocked = canPublish && p.publishBlockers.length > 0;
 
   const run = (a: "publish" | "unpublish") =>

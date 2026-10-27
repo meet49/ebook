@@ -1,4 +1,4 @@
-import type { CommissionType, ProductKind, ProductStatus, Role, UserStatus } from './enums';
+import type { AuthorEarningStatus, AuthorStatus, CommissionType, ProductKind, ProductStatus, Role, UserStatus } from './enums';
 
 export interface PublicUser {
   id: string;
@@ -102,6 +102,10 @@ export interface AdminProduct {
   processing: { status: ProcessingStatus; error: string | null; done: number; total: number };
   /** Requirements not yet met for publishing (empty when publishable). */
   publishBlockers: string[];
+  /** Set for books written by a marketplace author. */
+  authorProfile: { id: string; penName: string } | null;
+  /** The admin's note when they asked the author for changes. */
+  reviewNote: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -204,5 +208,60 @@ export interface AdminMembershipPlan extends MembershipPlan {
   affiliate: { enabled: boolean; type: CommissionType; value: number };
   /** Paid passes sold with this plan. */
   sold: number;
+  createdAt: string;
+}
+
+export interface PayoutDestinationSummary {
+  method: 'upi' | 'bank_transfer';
+  upiId: string | null;
+  accountName: string | null;
+  accountNumberLast4: string | null;
+  ifsc: string | null;
+}
+
+/** The signed-in author's own profile. */
+export interface AuthorProfileDto {
+  id: string;
+  status: AuthorStatus;
+  penName: string;
+  bio: string;
+  website: string;
+  /** Share of each sale (after any affiliate commission), in percent. */
+  sharePercent: number;
+  payout: PayoutDestinationSummary | null;
+  reviewNote: string | null;
+  createdAt: string;
+}
+
+export interface AuthorStats {
+  books: { total: number; published: number; inReview: number };
+  sales: number;
+  earnings: { pendingPaise: number; payablePaise: number; paidPaise: number };
+}
+
+export interface AuthorEarningDto {
+  id: string;
+  orderNumber: string;
+  books: { title: string; pricePaise: number; amountPaise: number }[];
+  amountPaise: number;
+  status: AuthorEarningStatus;
+  holdUntil: string;
+  createdAt: string;
+}
+
+export interface AdminAuthor {
+  id: string;
+  status: AuthorStatus;
+  penName: string;
+  bio: string;
+  website: string;
+  aboutBooks: string;
+  sharePercent: number;
+  user: { name: string; email: string };
+  books: number;
+  payablePaise: number;
+  paidPaise: number;
+  hasPayoutDetails: boolean;
+  reviewNote: string | null;
   createdAt: string;
 }

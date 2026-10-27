@@ -10,7 +10,9 @@ import {
   FileClock,
   HandCoins,
   LayoutDashboard,
+  Library,
   Link2,
+  PenLine,
   Receipt,
   ScrollText,
   Settings,
@@ -40,6 +42,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         { href: "/admin/customers", label: a.customers, icon: Users },
         { href: "/admin/membership", label: a.membership, icon: Ticket },
         { href: "/admin/coupons", label: a.coupons, icon: TicketPercent },
+        { href: "/admin/authors", label: a.authors, icon: PenLine },
       ],
     },
     {
@@ -60,6 +63,25 @@ export function AdminShell({ children }: { children: ReactNode }) {
   ];
   return (
     <DashboardShell portal="admin" title={t.portals.admin} homeHref="/admin" nav={nav}>
+      {children}
+    </DashboardShell>
+  );
+}
+
+export function AuthorShell({ children }: { children: ReactNode }) {
+  const t = useMessages().common.dashboard;
+  const a = t.author;
+  const nav: NavGroup[] = [
+    {
+      items: [
+        { href: "/author", label: a.overview, icon: Library, exact: true },
+        { href: "/author/earnings", label: a.earnings, icon: Wallet },
+        { href: "/author/profile", label: a.profile, icon: UserCircle },
+      ],
+    },
+  ];
+  return (
+    <DashboardShell portal="author" title={t.portals.author} homeHref="/author" nav={nav}>
       {children}
     </DashboardShell>
   );

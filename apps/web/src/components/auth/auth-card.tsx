@@ -6,6 +6,7 @@ import {
   Link2,
   Lock,
   MailCheck,
+  PenLine,
   ShieldCheck,
   Smartphone,
   Sparkles,
@@ -18,11 +19,12 @@ import { getMessages } from "@/i18n/server";
 import { cn } from "@/lib/utils";
 
 /** Which story the brand panel beside the form tells. */
-export type AuthPanel = "reader" | "affiliate" | "admin";
+export type AuthPanel = "reader" | "affiliate" | "author" | "admin";
 
 const POINT_ICONS: Record<AuthPanel, LucideIcon[]> = {
   reader: [Smartphone, Fingerprint, MailCheck],
   affiliate: [Link2, BarChart3, Wallet],
+  author: [PenLine, Fingerprint, Wallet],
   admin: [Lock, FileClock, KeyRound],
 };
 

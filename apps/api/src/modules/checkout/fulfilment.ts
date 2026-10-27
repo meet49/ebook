@@ -14,6 +14,7 @@ import { Order, type OrderDoc } from '../../models/Order';
 import { User } from '../../models/User';
 import { issueAuthToken } from '../auth/tokens';
 import { adjustCommissionForRefund, createCommissionForOrder } from '../commissions/ledger';
+import { adjustAuthorEarningsForRefund, createAuthorEarningsForOrder } from '../authors/earnings';
 import { grantPasses, revokePasses } from '../membership/passes';
 import { orderLines } from './lines';
 
@@ -83,7 +84,9 @@ export async function fulfilOrder(orderId: Types.ObjectId, payment: GatewayPayme
     );
   }
   await grantPasses(order, now);
+  // Commission first: an author's share is calculated after the affiliate's.
   await createCommissionForOrder(order);
+  await createAuthorEarningsForOrder(order);
   if (order.attribution?.clickId) {
     await AffiliateClick.updateOne({ _id: order.attribution.clickId, convertedOrderId: null }, { $set: { convertedOrderId: order._id } });
   }
@@ -193,7 +196,10 @@ export async function applyRefund(
     );
     await revokePasses(order._id);
   }
-  if (order.refundedPaise > 0) await adjustCommissionForRefund(order, actorId);
+  if (order.refundedPaise > 0) {
+    await adjustCommissionForRefund(order, actorId);
+    await adjustAuthorEarningsForRefund(order);
+  }
   await audit({ action: 'order.refund_recorded', entityType: 'Order', entityId: order._id, actorId, meta: { ...refund } });
   return order;
 }

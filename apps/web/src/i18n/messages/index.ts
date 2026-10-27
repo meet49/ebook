@@ -3,6 +3,7 @@ import { about } from "./about";
 import { affiliate } from "./affiliate";
 import { affiliateProgram } from "./affiliateProgram";
 import { auth } from "./auth";
+import { author } from "./author";
 import { catalog } from "./catalog";
 import { checkout } from "./checkout";
 import { common } from "./common";
@@ -17,7 +18,7 @@ import { reader } from "./reader";
  * One file per area. Each exports `{ en, hi }`, where `hi` is typed as `typeof en`, so a
  * missing or misspelled Hindi string is a type error.
  */
-const namespaces = { common, home, catalog, product, checkout, auth, library, reader, affiliateProgram, affiliate, contact, about, membership };
+const namespaces = { common, home, catalog, product, checkout, auth, library, reader, affiliateProgram, affiliate, contact, about, membership, author };
 
 type Namespaces = typeof namespaces;
 export type Messages = { [K in keyof Namespaces]: Namespaces[K]["en"] };

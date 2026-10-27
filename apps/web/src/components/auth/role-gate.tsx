@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMessages } from "@/i18n/client";
 import { PORTAL_LOGIN, hasRole, useLogout, useMe } from "@/lib/auth";
 
-const ROLE_FOR_PORTAL: Record<Portal, Role> = { customer: "customer", affiliate: "affiliate", admin: "admin" };
+const ROLE_FOR_PORTAL: Record<Portal, Role> = { customer: "customer", affiliate: "affiliate", author: "author", admin: "admin" };
 
 /**
  * Client-side gate for portal pages. This is UX only — every API call is authorized
@@ -59,9 +59,9 @@ export function RoleGate({ portal, children, fallback }: { portal: Portal; child
           <Button variant="outline" asChild>
             <Link href="/">{m.common.dashboard.backToStore}</Link>
           </Button>
-          {portal === "affiliate" && (
+          {(portal === "affiliate" || portal === "author") && (
             <Button variant="outline" asChild>
-              <Link href="/affiliate/apply">{t.apply}</Link>
+              <Link href={`/${portal}/apply`}>{t.apply}</Link>
             </Button>
           )}
           <Button

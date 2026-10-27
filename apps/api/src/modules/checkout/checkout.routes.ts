@@ -15,6 +15,7 @@ import { Order } from '../../models/Order';
 import { Product } from '../../models/Product';
 import { User, type UserDoc } from '../../models/User';
 import { couponAttribution, resolveAttribution } from '../affiliates/attribution';
+import { authorSnapshots } from '../authors/earnings';
 import { toSummary } from '../products/products.service';
 import { PaymentMismatchError, assertPaymentMatchesOrder, fulfilOrder, newOrderNumber } from './fulfilment';
 import { orderLines, publicLine } from './lines';
@@ -99,6 +100,7 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
   // A coupon that belongs to an affiliate credits them; otherwise the usual link attribution.
   const viaCoupon = priced.coupon?.coupon.affiliateId ? await couponAttribution(priced.coupon.coupon.affiliateId, user, books) : null;
   const attribution = viaCoupon ?? (await resolveAttribution(req, user, books));
+  const authors = await authorSnapshots(books);
   const orderNumber = newOrderNumber();
   const rzpOrder = await gw.createOrder({
     amount: amountPaise,
@@ -128,6 +130,8 @@ checkoutRouter.post('/orders', sensitiveLimiter, async (req, res) => {
       displayPriceMinor: l.displayPriceMinor,
       couponDiscountPaise: l.couponDiscountPaise ?? 0,
       membershipDays: l.product.kind === 'membership' ? (l.product.membership?.durationDays ?? null) : null,
+      authorProfileId: authors.get(l.product._id.toString())?.authorProfileId ?? null,
+      authorSharePercent: authors.get(l.product._id.toString())?.sharePercent ?? null,
       commissionRule: l.product.affiliate?.enabled
         ? { type: l.product.affiliate.type ?? 'percent', value: l.product.affiliate.value ?? 0 }
         : null,

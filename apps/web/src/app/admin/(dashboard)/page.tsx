@@ -7,6 +7,7 @@ import {
   ChevronRight,
   HandCoins,
   IndianRupee,
+  PenLine,
   Plus,
   Receipt,
   Sparkles,
@@ -34,6 +35,7 @@ interface AdminStats {
   topProducts: { productId: string; title: string; orders: number; revenuePaise: number }[];
   customers: number;
   affiliates: { approved: number; pending: number };
+  authors: { pending: number };
   commissions: Partial<Record<CommissionStatus, number>>;
   openPayouts: number;
   products: Record<string, number>;
@@ -57,6 +59,10 @@ export default function AdminOverviewPage() {
   if (data) {
     if (data.affiliates.pending > 0)
       actions.push({ href: "/admin/affiliates", text: `${plural(data.affiliates.pending, "affiliate application")} to review`, icon: UsersRound, tone: "violet" });
+    if (data.authors.pending > 0)
+      actions.push({ href: "/admin/authors", text: `${plural(data.authors.pending, "author application")} to review`, icon: PenLine, tone: "violet" });
+    if ((data.products.in_review ?? 0) > 0)
+      actions.push({ href: "/admin/products", text: `${plural(data.products.in_review ?? 0, "eBook")} from authors waiting for review`, icon: BookOpen, tone: "primary" });
     if (data.openPayouts > 0) actions.push({ href: "/admin/payouts", text: `${plural(data.openPayouts, "payout request")} waiting`, icon: Wallet, tone: "warning" });
     if ((data.commissions.pending ?? 0) > 0)
       actions.push({ href: "/admin/commissions", text: `${formatINR(data.commissions.pending ?? 0)} in pending commissions to review`, icon: HandCoins, tone: "primary" });

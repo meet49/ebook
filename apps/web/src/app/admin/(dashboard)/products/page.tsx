@@ -18,6 +18,7 @@ import { AdminPager, ListEmpty, ListError, ListSkeleton } from "../_components/a
 const FILTERS: { value: ProductStatus | "all"; label: string }[] = [
   { value: "all", label: "All" },
   { value: "published", label: "Published" },
+  { value: "in_review", label: "In review" },
   { value: "draft", label: "Drafts" },
   { value: "unpublished", label: "Unpublished" },
   { value: "archived", label: "Archived" },
@@ -139,6 +140,7 @@ export default function AdminProductsPage() {
                         <span className="min-w-0">
                           <span className="block max-w-72 truncate font-medium group-hover:underline">{p.title}</span>
                           <span className="text-muted-foreground block truncate font-mono text-xs">/ebooks/{p.slug}</span>
+                          {p.authorProfile ? <span className="text-primary block truncate text-xs">by {p.authorProfile.penName}</span> : null}
                         </span>
                       </Link>
                     </TableCell>
