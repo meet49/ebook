@@ -13,13 +13,14 @@ import { env } from '../../config/env';
 import { audit } from '../../lib/audit';
 import { decryptField, encryptField, hashPassword } from '../../lib/crypto';
 import { HttpError, badRequest, conflict, forbidden, notFound } from '../../lib/errors';
-import { requireRole } from '../../middleware/auth';
+import { requireAuth, requireRole } from '../../middleware/auth';
 import { sensitiveLimiter } from '../../middleware/rateLimit';
 import { parse } from '../../middleware/validate';
 import { AffiliateClick } from '../../models/AffiliateClick';
 import { AffiliateProduct } from '../../models/AffiliateProduct';
 import { AffiliateProfile, type AffiliateProfileDoc } from '../../models/AffiliateProfile';
 import { Commission } from '../../models/Commission';
+import { Entitlement } from '../../models/Entitlement';
 import { Order } from '../../models/Order';
 import { Payout } from '../../models/Payout';
 import { Product } from '../../models/Product';
@@ -104,6 +105,47 @@ affiliateRouter.post('/apply', sensitiveLimiter, async (req, res) => {
   await User.updateOne({ _id: user._id }, { $addToSet: { roles: 'affiliate' } });
   await audit({ action: 'affiliate.applied', actorId: user._id, entityType: 'AffiliateProfile', entityId: profile._id, req });
   res.status(201).json({ profile: toAffiliateProfileDto(profile) });
+});
+
+const joinSchema = z.object({
+  acceptTerms: z.literal(true, { error: 'You must accept the affiliate terms' }),
+});
+
+/**
+ * One-click join for customers who have bought a book: approved immediately (no application
+ * form), so they can start sharing straight away. Payout details can be added later. Admins can
+ * still suspend the account; a rejected or suspended profile is never re-activated this way.
+ */
+affiliateRouter.post('/join', requireAuth, sensitiveLimiter, async (req, res) => {
+  parse(joinSchema, req.body);
+  const user = req.auth!.user;
+  const bought = await Entitlement.exists({ userId: user._id, status: 'active', orderId: { $ne: null } });
+  if (!bought) throw forbidden('Buy an eBook first to join instantly, or apply with the affiliate form.');
+
+  let profile = await AffiliateProfile.findOne({ userId: user._id });
+  if (profile && (profile.status === 'rejected' || profile.status === 'suspended')) {
+    throw forbidden('Your affiliate account is not active. Please contact support.');
+  }
+  const now = new Date();
+  const review = { at: now, note: 'Auto-approved: joined as a customer' };
+  if (!profile) {
+    profile = new AffiliateProfile({
+      userId: user._id,
+      code: await uniqueAffiliateCode(),
+      status: 'approved',
+      application: { channels: [], promotionPlan: 'Joined as a customer', submittedAt: now },
+      review,
+    });
+  } else if (profile.status === 'pending') {
+    profile.status = 'approved';
+    profile.set('review', review);
+  }
+  if (profile.isModified() || profile.isNew) {
+    await profile.save();
+    await audit({ action: 'affiliate.joined_as_buyer', actorId: user._id, entityType: 'AffiliateProfile', entityId: profile._id, req });
+  }
+  await User.updateOne({ _id: user._id }, { $addToSet: { roles: 'affiliate' } });
+  res.json({ profile: toAffiliateProfileDto(profile) });
 });
 
 // Everything below requires the affiliate role.

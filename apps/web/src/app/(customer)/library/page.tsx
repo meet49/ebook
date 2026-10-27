@@ -7,6 +7,7 @@ import { useMemo, type ReactNode } from "react";
 import { toast } from "sonner";
 import type { ComboOffers as ComboOffersData } from "@ebook/shared";
 import { ComboOffers } from "@/components/checkout/combo-offers";
+import { ShareAndEarn } from "@/components/library/share-and-earn";
 import { BookCover } from "@/components/products/book-cover";
 import { ProductGrid } from "@/components/products/product-card";
 import { Button } from "@/components/ui/button";
@@ -139,6 +140,8 @@ export default function LibraryPage() {
           {continueItem && <ContinueReading item={continueItem} />}
 
           {offers ? <ComboOffers items={offers.items} expiresAt={offers.expiresAt} /> : null}
+
+          <ShareAndEarn books={data.items} />
 
           <section className="space-y-5" aria-labelledby="my-books-heading">
             <div className="flex items-baseline gap-2">

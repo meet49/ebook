@@ -324,3 +324,31 @@ describe('security regressions', () => {
     await admin.post(`/api/v1/admin/payouts/${payout.id}/mark-paid`).send({ reference: 'UTR-ZERO-1' }).expect(409);
   });
 });
+
+describe('one-click join for buyers', () => {
+  it('approves a buyer instantly and lets them create links', async () => {
+    const buyer = await signIn(`buyer${++n}@example.com`, 'customer', ['customer']);
+    // Not yet a buyer: refused.
+    await buyer.post('/api/v1/affiliate/join').send({ acceptTerms: true }).expect(403);
+
+    await buyAs(buyer);
+    await buyer.post('/api/v1/affiliate/join').send({}).expect(400);
+    const res = await buyer.post('/api/v1/affiliate/join').send({ acceptTerms: true }).expect(200);
+    expect(res.body.profile.status).toBe('approved');
+
+    const product = await Product.findOne({ slug: 'focus' });
+    const link = await buyer.post('/api/v1/affiliate/links').send({ productId: product!._id.toString() }).expect(201);
+    expect(link.body.link.url).toMatch(/\/r\//);
+    // Joining again is harmless.
+    await buyer.post('/api/v1/affiliate/join').send({ acceptTerms: true }).expect(200);
+    expect(await AffiliateProfile.countDocuments({ status: 'approved' })).toBe(1);
+  });
+
+  it('never re-activates a suspended affiliate', async () => {
+    const buyer = await signIn(`buyer${++n}@example.com`, 'customer', ['customer']);
+    await buyAs(buyer);
+    await buyer.post('/api/v1/affiliate/join').send({ acceptTerms: true }).expect(200);
+    await AffiliateProfile.updateOne({}, { $set: { status: 'suspended' } });
+    await buyer.post('/api/v1/affiliate/join').send({ acceptTerms: true }).expect(403);
+  });
+});
