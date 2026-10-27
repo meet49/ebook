@@ -42,13 +42,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
         { href: "/admin/customers", label: a.customers, icon: Users },
         { href: "/admin/membership", label: a.membership, icon: Ticket },
         { href: "/admin/coupons", label: a.coupons, icon: TicketPercent },
-        { href: "/admin/authors", label: a.authors, icon: PenLine },
       ],
     },
     {
       label: a.groups.partners,
       items: [
         { href: "/admin/affiliates", label: a.affiliates, icon: UsersRound },
+        { href: "/admin/authors", label: a.authors, icon: PenLine },
         { href: "/admin/commissions", label: a.commissions, icon: HandCoins },
         { href: "/admin/payouts", label: a.payouts, icon: Wallet },
       ],
@@ -74,7 +74,7 @@ export function AuthorShell({ children }: { children: ReactNode }) {
   const nav: NavGroup[] = [
     {
       items: [
-        { href: "/author", label: a.overview, icon: Library, exact: true },
+        { href: "/author", label: a.overview, icon: Library, exact: true, also: ["/author/books"] },
         { href: "/author/earnings", label: a.earnings, icon: Wallet },
         { href: "/author/profile", label: a.profile, icon: UserCircle },
       ],

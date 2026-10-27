@@ -18,5 +18,8 @@ describe('money', () => {
   it('formats paise', () => {
     expect(paiseToRupeesString(100005)).toBe('1000.05');
     expect(formatINR(100000)).toBe('₹1,000');
+    // Paise always show both digits.
+    expect(formatINR(15920)).toBe('₹159.20');
+    expect(formatINR(3980)).toBe('₹39.80');
   });
 });

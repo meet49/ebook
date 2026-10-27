@@ -22,6 +22,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Match only the exact path (for section roots like /admin). */
   exact?: boolean;
+  /** Other path prefixes that belong to this item (e.g. a book editor under a root list). */
+  also?: string[];
 }
 
 export interface NavGroup {
@@ -37,7 +39,8 @@ interface DashboardShellProps {
   children: ReactNode;
 }
 
-function isActive(pathname: string, { href, exact }: NavItem) {
+function isActive(pathname: string, { href, exact, also = [] }: NavItem) {
+  if (also.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return true;
   return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 

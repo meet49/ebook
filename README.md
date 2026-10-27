@@ -3,6 +3,20 @@
 Sell digital eBooks, let customers read them in a secure online reader, and run an
 affiliate program with an auditable commission ledger.
 
+Ways to earn beyond single-book sales:
+
+- **Combos.** Same-category books at a combo price, at checkout and for 24 hours after a purchase.
+- **Coupons.** Admin → Coupons: percent or fixed codes for all books, selected books or
+  membership plans, with dates and limits. Shareable as `?coupon=CODE` links. A coupon can belong
+  to an affiliate, who then earns commission on its sales.
+- **ReadnShare Pass.** Admin → Membership: one-time plans (e.g. 30 or 365 days) that open every
+  book marked “Included in ReadnShare Pass”. No auto-renewal; passes stack.
+- **Buyers as affiliates.** Anyone who bought can join the affiliate program in one click from
+  their library.
+- **Author marketplace.** Writers apply at `/author/apply`, add their books in the author portal
+  and send them for review. On each sale the affiliate commission comes off first, and the author
+  earns their share (set per author by the admin) of the rest. Admin → Authors records payments.
+
 | Part | Stack |
 |---|---|
 | `apps/web` | Next.js 16 (App Router), TypeScript, Tailwind CSS 4, shadcn/ui, TanStack Query, React Hook Form + Zod, Framer Motion, page-flip |

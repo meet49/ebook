@@ -26,30 +26,27 @@ export function paiseToRupeesString(paise: number): string {
   return `${Math.floor(paise / 100)}.${String(paise % 100).padStart(2, '0')}`;
 }
 
-const inrFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
+/** Whole amounts without decimals ("₹199"); anything else with exactly two ("₹159.20"). */
+function moneyFormatters(locale: string, currency: string) {
+  const whole = new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const exact = new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (minor: number) => (minor % 100 === 0 ? whole : exact).format(minor / 100);
+}
+
+const inr = moneyFormatters('en-IN', 'INR');
 
 export function formatINR(paise: number): string {
-  return inrFormatter.format(paise / 100);
+  return inr(paise);
 }
 
 /** Currencies prices are shown in. Payments are always charged in INR. */
 export type DisplayCurrency = 'INR' | 'USD';
 
-const usdFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
+const usd = moneyFormatters('en-US', 'USD');
 
-/** Formats US cents, e.g. 900 → "$9". */
+/** Formats US cents, e.g. 900 → "$9", 499 → "$4.99". */
 export function formatUSD(cents: number): string {
-  return usdFormatter.format(cents / 100);
+  return usd(cents);
 }
 
 /** Formats an amount in the minor unit of its currency (paise or cents). */
