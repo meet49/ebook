@@ -53,7 +53,7 @@ export async function getFeaturedOffer(): Promise<FeaturedOffer | null> {
 }
 
 export interface SiteConfig {
-  analytics: { gaMeasurementId: string | null };
+  analytics: { gaMeasurementId: string | null; metaPixelId: string | null };
 }
 
 /**

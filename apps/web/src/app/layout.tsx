@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif, Noto_Sans_Devanagari } from "next/font/google";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+import { MetaPixel } from "@/components/analytics/meta-pixel";
 import { Providers } from "@/components/providers";
 import { getLocale } from "@/i18n/server";
 import { isInternationalVisitor } from "@/lib/region-server";
@@ -46,6 +47,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           {children}
         </Providers>
         <GoogleAnalytics measurementId={siteConfig?.analytics.gaMeasurementId ?? null} />
+        <MetaPixel pixelId={siteConfig?.analytics.metaPixelId ?? null} />
       </body>
     </html>
   );

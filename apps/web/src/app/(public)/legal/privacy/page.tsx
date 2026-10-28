@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Privacy policy", alternates: { canon
 // TEMPLATE: have this policy reviewed (including DPDP Act 2023 obligations) before launch.
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy policy" updated="17 October 2026">
+    <LegalPage title="Privacy policy" updated="28 October 2026">
       <p>
         This policy explains what personal data {OPERATOR} collects through the {SITE_NAME} website and app, why we use
         it, who we share it with, and the choices you have.
@@ -45,6 +45,7 @@ export default function PrivacyPage() {
         <li>Razorpay, to process payments and refunds.</li>
         <li>Our hosting, database, file storage and email providers, only as needed to run the Service.</li>
         <li>Google Analytics, for anonymous usage statistics about how the website is used.</li>
+        <li>Meta (Facebook and Instagram), through the Meta Pixel, to measure how well our ads work.</li>
         <li>Authorities, when required by law.</li>
       </ul>
 
@@ -58,13 +59,23 @@ export default function PrivacyPage() {
           example which pages are visited and where visitors came from). Google processes this data under its own privacy
           policy. Analytics is not loaded on admin pages or on sign-in, verification and password-reset links.
         </li>
+        <li>
+          Advertising cookies: we may use the Meta Pixel, which sets a cookie and tells Meta which pages of the website
+          you visit, so we can measure our Facebook and Instagram ads and show them to people likely to be interested.
+          Meta processes this data under its own privacy policy. Like analytics, it is not loaded on admin pages or on
+          sign-in, verification and password-reset links.
+        </li>
       </ul>
       <p>
-        We do not use advertising cookies. You can block analytics cookies in your browser settings or with the{" "}
+        You can block analytics and advertising cookies in your browser settings, use the{" "}
         <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener noreferrer">
           Google Analytics opt-out add-on
         </a>
-        .
+        , and control how Meta uses your activity from other websites in your Facebook or Instagram settings (
+        <a href="https://www.facebook.com/off_facebook_activity" target="_blank" rel="noopener noreferrer">
+          Your activity off Meta technologies
+        </a>
+        ).
       </p>
 
       <h2>How long we keep it</h2>

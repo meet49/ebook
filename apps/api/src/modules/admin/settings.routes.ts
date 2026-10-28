@@ -11,7 +11,15 @@ import {
   verifyRazorpayCredentials,
   type StoredRazorpaySettings,
 } from '../../lib/payments/config';
-import { GA_MEASUREMENT_ID, getAnalyticsSettings, invalidateSiteConfig, type StoredAnalyticsSettings } from '../../lib/site-config';
+import {
+  GA_MEASUREMENT_ID,
+  META_PIXEL_ID,
+  getAnalyticsSettings,
+  getMetaPixelSettings,
+  invalidateSiteConfig,
+  type StoredAnalyticsSettings,
+  type StoredMetaPixelSettings,
+} from '../../lib/site-config';
 import { sensitiveLimiter } from '../../middleware/rateLimit';
 import { parse } from '../../middleware/validate';
 import { SETTING_KEYS, Setting } from '../../models/Setting';
@@ -179,4 +187,48 @@ adminSettingsRouter.put('/analytics', async (req, res) => {
   invalidateSiteConfig();
   await audit({ action: 'settings.analytics_updated', entityType: 'Setting', meta: { ...value }, req });
   res.json({ analytics: await analyticsSettingsDto() });
+});
+
+// ─── Meta Pixel ──────────────────────────────────────────────────────
+// Like the Measurement ID, the Pixel ID is public, so no password step-up is needed.
+
+async function metaPixelSettingsDto() {
+  const [settings, stored] = await Promise.all([getMetaPixelSettings(), Setting.findOne({ key: SETTING_KEYS.metaPixel })]);
+  const updatedBy = stored?.updatedBy ? await User.findById(stored.updatedBy).select('email') : null;
+  return {
+    ...settings,
+    updatedAt: stored?.updatedAt?.toISOString() ?? null,
+    updatedBy: updatedBy?.email ?? null,
+  };
+}
+
+adminSettingsRouter.get('/meta-pixel', async (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ metaPixel: await metaPixelSettingsDto() });
+});
+
+const metaPixelBody = z
+  .object({
+    pixelId: z
+      .string()
+      .trim()
+      .refine((v) => v === '' || META_PIXEL_ID.test(v), 'The Pixel ID is a number of 10 to 20 digits'),
+    enabled: z.boolean(),
+  })
+  .refine((v) => !v.enabled || v.pixelId !== '', {
+    path: ['pixelId'],
+    message: 'Enter the Pixel ID to turn tracking on',
+  });
+
+adminSettingsRouter.put('/meta-pixel', async (req, res) => {
+  const input = parse(metaPixelBody, req.body);
+  const value: StoredMetaPixelSettings = { pixelId: input.pixelId || null, enabled: input.enabled };
+  await Setting.updateOne(
+    { key: SETTING_KEYS.metaPixel },
+    { $set: { value, updatedBy: req.auth!.user._id } },
+    { upsert: true },
+  );
+  invalidateSiteConfig();
+  await audit({ action: 'settings.meta_pixel_updated', entityType: 'Setting', meta: { ...value }, req });
+  res.json({ metaPixel: await metaPixelSettingsDto() });
 });

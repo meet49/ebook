@@ -75,7 +75,7 @@ Responses never include storage keys or commission settings.
 | GET | `/checkout/orders/:orderNumber` | — | Status for the confirmation page: `lines`, `membership` (a pass order), masked email, `isOwner` |
 | GET | `/checkout/orders/:orderNumber/offers` | — | Combo offers for 24 h after the order was paid (empty otherwise) |
 | GET | `/coupons/featured` | — | `{offer}`: the coupon the admin chose to show on the home page (code, discount, scope, minimum, end), or null when none can be used now. Never an affiliate's coupon |
-| GET | `/site-config` | — | Public settings for the website: `{ analytics: { gaMeasurementId } }` (set in Admin → Settings) |
+| GET | `/site-config` | — | Public settings for the website: `{ analytics: { gaMeasurementId, metaPixelId } }` (set in Admin → Settings) |
 | POST | `/webhooks/razorpay` | signature | Raw body; `X-Razorpay-Signature` HMAC. Handles `payment.captured`, `order.paid`, `payment.failed`, `refund.created`, `refund.processed`, `refund.failed`. Deduplicated by `X-Razorpay-Event-Id` |
 
 **Fulfilment** (idempotent; the verify call and webhook may race):

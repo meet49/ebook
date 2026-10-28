@@ -39,6 +39,9 @@ themes.
 - **Google Analytics.** Admin → Settings → Google Analytics takes the GA4 Measurement ID and an
   on/off switch (no env vars). The site reads it from `GET /api/v1/site-config` (cached about a
   minute). GA is never loaded on admin pages or on email sign-in, verify and reset links.
+- **Meta Pixel.** Admin → Settings → Meta Pixel works the same way (Pixel ID and an on/off
+  switch) and skips the same pages. The Pixel's own page-change tracking is turned off; the site
+  sends a PageView for each page change itself, so moves into skipped pages are never reported.
 
 Docs: [Architecture & plan](docs/ARCHITECTURE.md) · [API reference](docs/API.md) ·
 [Deploy on Render](docs/DEPLOY-RENDER.md) · [Deployment checklist](docs/DEPLOYMENT.md) · [Progress & known limitations](docs/PROGRESS.md)

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, BarChart3, CheckCircle2, Copy, CreditCard, ExternalLink, Info, KeyRound, PlugZap, Trash2, Webhook } from "lucide-react";
+import { AlertTriangle, BarChart3, CheckCircle2, Copy, CreditCard, ExternalLink, Info, KeyRound, PlugZap, Target, Trash2, Webhook } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { IconChip, StatusPill } from "@/components/dashboard/list-ui";
@@ -54,6 +54,7 @@ export default function SettingsPage() {
       <div className="max-w-3xl space-y-6">
         {isPending || !data ? <Skeleton className="h-96 rounded-2xl" /> : <PaymentsCard settings={data} />}
         <AnalyticsSection />
+        <MetaPixelSection />
       </div>
     </>
   );
@@ -382,6 +383,115 @@ function AnalyticsCard({ settings: s }: { settings: AnalyticsSettings }) {
           <Field orientation="horizontal">
             <Switch id="gaEnabled" checked={enabled} onCheckedChange={setEnabled} />
             <FieldLabel htmlFor="gaEnabled">Turn on tracking on the website</FieldLabel>
+          </Field>
+        </FieldGroup>
+      </CardContent>
+
+      <CardFooter className="justify-end">
+        <Button onClick={() => save.mutate()} disabled={save.isPending || !dirty}>
+          {save.isPending ? <Spinner /> : <CheckCircle2 />} Save
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+// ─── Meta Pixel ──────────────────────────────────────────────────────
+
+interface MetaPixelSettings {
+  pixelId: string | null;
+  enabled: boolean;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+const metaPixelKey = ["admin", "settings", "meta-pixel"] as const;
+
+function MetaPixelSection() {
+  const { data, isPending } = useQuery({
+    queryKey: metaPixelKey,
+    queryFn: () => api<{ metaPixel: MetaPixelSettings }>("/admin/settings/meta-pixel").then((r) => r.metaPixel),
+  });
+  if (isPending || !data) return <Skeleton className="h-72 rounded-2xl" />;
+  return <MetaPixelCard settings={data} />;
+}
+
+function MetaPixelCard({ settings: s }: { settings: MetaPixelSettings }) {
+  const qc = useQueryClient();
+  const [pixelId, setPixelId] = useState(s.pixelId ?? "");
+  const [enabled, setEnabled] = useState(s.enabled);
+  const [error, setError] = useState<string | null>(null);
+  const dirty = pixelId.trim() !== (s.pixelId ?? "") || enabled !== s.enabled;
+
+  const save = useMutation({
+    mutationFn: () =>
+      api<{ metaPixel: MetaPixelSettings }>("/admin/settings/meta-pixel", { method: "PUT", body: { pixelId, enabled } }).then((r) => r.metaPixel),
+    onSuccess: (metaPixel) => {
+      qc.setQueryData(metaPixelKey, metaPixel);
+      setPixelId(metaPixel.pixelId ?? "");
+      setError(null);
+      toast.success(metaPixel.enabled ? "Meta Pixel is on — the site starts sending data within a minute" : "Meta Pixel settings saved");
+    },
+    onError: (err) => {
+      const field = err instanceof ApiError ? err.details?.pixelId?.[0] : undefined;
+      if (field) setError(field);
+      else toast.error(errorMessage(err));
+    },
+  });
+
+  return (
+    <Card className="rounded-2xl">
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle className="flex items-center gap-3">
+            <IconChip icon={Target} tone="primary" /> Meta Pixel
+          </CardTitle>
+          {s.enabled && s.pixelId ? <StatusPill tone="success">Tracking on</StatusPill> : <StatusPill tone="muted">Off</StatusPill>}
+        </div>
+        <CardDescription className="pt-1">
+          Measure your Facebook and Instagram ads: page views from the website are sent to your Meta Pixel, so you can see results and
+          build audiences in Meta Events Manager.
+          {s.updatedAt ? ` Updated ${new Date(s.updatedAt).toLocaleString("en-IN")}${s.updatedBy ? ` by ${s.updatedBy}` : ""}.` : ""}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-6">
+        <div className="bg-primary/5 border-primary/20 flex gap-3 rounded-xl border p-3.5 text-sm">
+          <Info className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
+          <div className="space-y-1">
+            <p>
+              In{" "}
+              <a href="https://business.facebook.com/events_manager2" target="_blank" rel="noopener noreferrer" className="text-primary inline-flex items-center gap-1 font-medium hover:underline">
+                Meta Events Manager <ExternalLink className="size-3" aria-hidden />
+              </a>{" "}
+              open <strong>Data sources → your pixel</strong> and copy the <strong>Pixel ID</strong> (a long number). In the base code it&apos;s the
+              number in <span className="font-mono">fbq(&apos;init&apos;, &apos;…&apos;)</span>.
+            </p>
+            <p className="text-muted-foreground">
+              The Pixel is never loaded on admin pages or on email sign-in, verification and password-reset links.
+            </p>
+          </div>
+        </div>
+
+        <FieldGroup>
+          <Field data-invalid={Boolean(error)}>
+            <FieldLabel htmlFor="metaPixelId">Pixel ID</FieldLabel>
+            <Input
+              id="metaPixelId"
+              value={pixelId}
+              onChange={(e) => setPixelId(e.target.value)}
+              placeholder="1234567890123456"
+              inputMode="numeric"
+              autoComplete="off"
+              spellCheck={false}
+              className="font-mono"
+              aria-invalid={Boolean(error)}
+            />
+            {error ? <FieldError>{error}</FieldError> : <FieldDescription>Only the ID is needed — paste just the number, not the whole code.</FieldDescription>}
+          </Field>
+          <Field orientation="horizontal">
+            <Switch id="metaPixelEnabled" checked={enabled} onCheckedChange={setEnabled} />
+            <FieldLabel htmlFor="metaPixelEnabled">Turn on the Pixel on the website</FieldLabel>
           </Field>
         </FieldGroup>
       </CardContent>

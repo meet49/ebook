@@ -117,3 +117,35 @@ describe('analytics settings', () => {
     expect((await request(app).get('/api/v1/site-config').expect(200)).body.analytics.gaMeasurementId).toBeNull();
   });
 });
+
+describe('Meta Pixel settings', () => {
+  const savePixel = (body: Record<string, unknown>) => admin.put('/api/v1/admin/settings/meta-pixel').send(body);
+
+  it('is admin-only to change', async () => {
+    await request(app).get('/api/v1/admin/settings/meta-pixel').expect(401);
+    await request(app).put('/api/v1/admin/settings/meta-pixel').set('Origin', 'http://localhost:3000').send({ pixelId: '1234567890123', enabled: true }).expect(401);
+    const res = await admin.get('/api/v1/admin/settings/meta-pixel').expect(200);
+    expect(res.body.metaPixel).toMatchObject({ pixelId: null, enabled: false });
+  });
+
+  it('validates the Pixel ID', async () => {
+    const bad = await savePixel({ pixelId: 'fb-12345', enabled: true });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.details.pixelId).toBeDefined();
+    const missing = await savePixel({ pixelId: '', enabled: true });
+    expect(missing.status).toBe(400);
+  });
+
+  it('publishes the ID to the website only while enabled', async () => {
+    expect((await request(app).get('/api/v1/site-config').expect(200)).body.analytics.metaPixelId).toBeNull();
+
+    const saved = await savePixel({ pixelId: ' 1108256975531587 ', enabled: true }).expect(200);
+    expect(saved.body.metaPixel).toMatchObject({ pixelId: '1108256975531587', enabled: true });
+    const config = (await request(app).get('/api/v1/site-config').expect(200)).body;
+    expect(config.analytics).toMatchObject({ metaPixelId: '1108256975531587', gaMeasurementId: null });
+    expect(await AuditLog.countDocuments({ action: 'settings.meta_pixel_updated' })).toBe(1);
+
+    await savePixel({ pixelId: '1108256975531587', enabled: false }).expect(200);
+    expect((await request(app).get('/api/v1/site-config').expect(200)).body.analytics.metaPixelId).toBeNull();
+  });
+});
