@@ -47,3 +47,44 @@ export function MetaPixel({ pixelId }: { pixelId: string | null }) {
     </>
   );
 }
+
+type PixelEventName = "ViewContent" | "InitiateCheckout" | "Purchase";
+
+/** What the standard shopping events carry. Amounts are in rupees, never paise. */
+export interface PixelEventParams {
+  content_ids: string[];
+  content_type: "product";
+  content_name?: string;
+  num_items?: number;
+  value: number;
+  currency: "INR";
+}
+
+/**
+ * Sends a standard event if the Pixel is on for this page. The Pixel loads only after the page
+ * becomes interactive, so this waits a few seconds for it, and otherwise does nothing.
+ * `eventId` lets Meta recognise the same purchase if it is ever reported twice.
+ */
+export function trackPixelEvent(event: PixelEventName, params: PixelEventParams, eventId?: string) {
+  let tries = 0;
+  const send = () => {
+    if (!window.fbq) {
+      if (++tries < 40) setTimeout(send, 250);
+      return;
+    }
+    if (eventId) window.fbq("track", event, params, { eventID: eventId });
+    else window.fbq("track", event, params);
+  };
+  send();
+}
+
+/** Sends one standard event when shown. Key it by product so each book viewed is counted. */
+export function PixelEvent({ event, params }: { event: PixelEventName; params: PixelEventParams }) {
+  const sent = useRef(false);
+  useEffect(() => {
+    if (sent.current) return;
+    sent.current = true;
+    trackPixelEvent(event, params);
+  }, [event, params]);
+  return null;
+}

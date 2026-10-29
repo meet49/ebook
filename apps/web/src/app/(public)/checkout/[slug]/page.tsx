@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Lock } from "lucide-react";
+import { PixelEvent } from "@/components/analytics/meta-pixel";
 import { CheckoutClient } from "@/components/checkout/checkout-client";
 import { getMessages } from "@/i18n/server";
 import { COUPON_COOKIE, couponFrom } from "@/lib/coupon";
@@ -68,6 +69,11 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
       </div>
 
       <CheckoutClient product={product} initialAddOns={initialAddOns} fromOrder={fromOrder} initialCoupon={initialCoupon} />
+      <PixelEvent
+        key={product.slug}
+        event="InitiateCheckout"
+        params={{ content_ids: [product.slug], content_type: "product", content_name: product.title, num_items: 1, value: product.effectivePricePaise / 100, currency: "INR" }}
+      />
     </div>
   );
 }

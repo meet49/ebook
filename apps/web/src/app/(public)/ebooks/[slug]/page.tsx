@@ -20,6 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import { formatINR, formatUSD, intlComboCents } from "@ebook/shared";
+import { PixelEvent } from "@/components/analytics/meta-pixel";
 import { BookCover } from "@/components/products/book-cover";
 import { Price } from "@/components/products/price";
 import { ProductGrid } from "@/components/products/product-card";
@@ -125,6 +126,11 @@ export default async function ProductPage({ params }: PageProps<"/ebooks/[slug]"
   return (
     <div className="relative">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(structured) }} />
+      <PixelEvent
+        key={product.slug}
+        event="ViewContent"
+        params={{ content_ids: [product.slug], content_type: "product", content_name: product.title, value: product.effectivePricePaise / 100, currency: "INR" }}
+      />
       <div className="mx-auto w-full max-w-6xl px-4 pt-6 pb-12 sm:px-6 sm:pt-8 lg:pb-20">
         <nav className="text-muted-foreground mb-6 text-sm" aria-label={t.breadcrumb}>
           <ol className="flex min-w-0 items-center gap-1.5">

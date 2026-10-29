@@ -61,7 +61,8 @@ export default function PrivacyPage() {
         </li>
         <li>
           Advertising cookies: we may use the Meta Pixel, which sets a cookie and tells Meta which pages of the website
-          you visit, so we can measure our Facebook and Instagram ads and show them to people likely to be interested.
+          you visit and, when you buy, which eBook and the amount (never your payment details), so we can measure our
+          Facebook and Instagram ads and show them to people likely to be interested.
           Meta processes this data under its own privacy policy. Like analytics, it is not loaded on admin pages or on
           sign-in, verification and password-reset links.
         </li>

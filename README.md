@@ -42,6 +42,9 @@ themes.
 - **Meta Pixel.** Admin → Settings → Meta Pixel works the same way (Pixel ID and an on/off
   switch) and skips the same pages. The Pixel's own page-change tracking is turned off; the site
   sends a PageView for each page change itself, so moves into skipped pages are never reported.
+  It also sends the standard shopping events: ViewContent (book page), InitiateCheckout
+  (checkout page) and Purchase (confirmation page, once per recent order, value in rupees and
+  the order number as the event ID).
 
 Docs: [Architecture & plan](docs/ARCHITECTURE.md) · [API reference](docs/API.md) ·
 [Deploy on Render](docs/DEPLOY-RENDER.md) · [Deployment checklist](docs/DEPLOYMENT.md) · [Progress & known limitations](docs/PROGRESS.md)

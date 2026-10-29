@@ -12,12 +12,14 @@ import {
   MailCheck,
   XCircle,
 } from "lucide-react";
+import { useEffect } from "react";
 import {
   formatINR,
   type ComboOffers as ComboOffersData,
   type OrderLine,
   type OrderStatus,
 } from "@ebook/shared";
+import { trackPixelEvent } from "@/components/analytics/meta-pixel";
 import { ComboOffers } from "@/components/checkout/combo-offers";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -38,6 +40,14 @@ interface OrderStatusResponse {
 
 const card =
   "bg-card w-full overflow-hidden rounded-3xl border shadow-xl shadow-indigo-900/5";
+
+/** Order numbers carry their UTC creation date: EB-YYYYMMDD-XXXXXX. */
+function isRecentOrder(orderNumber: string) {
+  const m = /^EB-(\d{4})(\d{2})(\d{2})-/.exec(orderNumber);
+  if (!m) return false;
+  const created = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Date.now() - created < 2 * 86_400_000;
+}
 
 export function OrderConfirmation() {
   const messages = useMessages();
@@ -67,6 +77,33 @@ export function OrderConfirmation() {
       ).then((r) => r.offers),
     enabled: isPaid,
   });
+
+  // Report the sale to the Meta Pixel once: only for a recent order, and once per browser, so
+  // reloading the page or opening it again later doesn't count the sale twice.
+  useEffect(() => {
+    if (!isPaid || !data || !isRecentOrder(data.orderNumber)) return;
+    const key = `rns_px_purchase_${data.orderNumber}`;
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch {
+      // Storage is blocked (e.g. private mode): report it anyway.
+    }
+    const slugs = data.lines?.length
+      ? data.lines.map((l) => l.slug)
+      : [data.product.slug];
+    trackPixelEvent(
+      "Purchase",
+      {
+        content_ids: slugs,
+        content_type: "product",
+        num_items: slugs.length,
+        value: data.amountPaise / 100,
+        currency: "INR",
+      },
+      data.orderNumber,
+    );
+  }, [isPaid, data]);
 
   if (!orderNumber || isError) {
     return (
