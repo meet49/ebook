@@ -1,3 +1,4 @@
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import express, { Router } from 'express';
 import helmet from 'helmet';
@@ -37,6 +38,9 @@ export function createApp() {
   app.set('trust proxy', env.TRUST_PROXY);
 
   app.use(helmet());
+  // Hosting bills outbound bandwidth, so JSON goes out compressed (gzip or brotli). Books and
+  // images are compressed already and are sent as they are.
+  app.use(compression({ filter: (req, res) => /json/.test(String(res.getHeader('Content-Type'))) && compression.filter(req, res) }));
   if (!isTest) app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/api/health' } }));
 
   app.get('/api/health', (_req, res) => {

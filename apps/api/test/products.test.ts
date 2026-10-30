@@ -219,6 +219,18 @@ describe('public catalog', () => {
     await request(app).get('/api/v1/products?sort=bogus').expect(400);
   });
 
+  it('compresses JSON and lets the website CDN keep covers', async () => {
+    const live = await publishedProduct({ description: 'Learn to focus. '.repeat(200) });
+    const detail = await request(app).get(`/api/v1/products/${live.slug}`).set('Accept-Encoding', 'gzip').expect(200);
+    expect(detail.headers['content-encoding']).toBe('gzip');
+    expect(detail.body.product.description).toContain('Learn to focus.');
+
+    const cover = await request(app).get(detail.body.product.coverUrl).set('Accept-Encoding', 'gzip').buffer(true).parse(binary).expect(200);
+    expect(cover.headers['content-encoding']).toBeUndefined();
+    expect(cover.headers['cache-control']).toBe('public, max-age=86400');
+    expect(cover.headers['cdn-cache-control']).toBe('max-age=86400');
+  });
+
   it('never exposes preview pages of a book publicly', async () => {
     const live = await publishedProduct({}, 3);
     const detail = await request(app).get(`/api/v1/products/${live.slug}`).expect(200);

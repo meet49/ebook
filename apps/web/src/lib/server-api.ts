@@ -5,10 +5,12 @@ const API_URL = process.env.API_URL ?? "http://127.0.0.1:5000";
 
 /**
  * Server-side fetch from the Express API for storefront pages (SEO-friendly server rendering).
- * Returns null for 404 so pages can render notFound().
+ * Responses are reused for 30 seconds, like the API's own cache headers allow, so busy pages
+ * don't call the API (and spend its bandwidth) on every view. Returns null for 404 so pages can
+ * render notFound().
  */
 async function serverGet<T>(path: string): Promise<T | null> {
-  const res = await fetch(`${API_URL}/api/v1${path}`, { cache: "no-store", headers: { Accept: "application/json" } });
+  const res = await fetch(`${API_URL}/api/v1${path}`, { next: { revalidate: 30 }, headers: { Accept: "application/json" } });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`API ${res.status} for ${path}`);
   return (await res.json()) as T;

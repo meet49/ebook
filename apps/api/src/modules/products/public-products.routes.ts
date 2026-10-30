@@ -67,6 +67,7 @@ publicProductsRouter.get('/:slug/cover', async (req, res) => {
   const product = await loadPublished(req);
   const asset = product.coverAssetId ? await ProductAsset.findById(product.coverAssetId) : null;
   if (!asset) throw notFound('No cover');
-  // URLs carry ?v=<assetId>, so a new upload gets a new URL and old ones can be cached for long.
-  await sendObject(res, asset.storageKey, 'image/webp', 'public, max-age=86400');
+  // URLs carry ?v=<assetId>, so a new upload gets a new URL and old ones can be cached for long:
+  // by browsers, and by the website's CDN, which spares the API's bandwidth.
+  await sendObject(res, asset.storageKey, 'image/webp', 'public, max-age=86400', 'max-age=86400');
 });

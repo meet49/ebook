@@ -34,6 +34,9 @@ async function productById(req: Request): Promise<ProductDoc> {
   return product;
 }
 
+/** Changes whenever a new PDF goes live, so a copy kept by the browser is never out of date. */
+const bookVersion = (product: ProductDoc) => product.pageSetId!.toString().slice(-8);
+
 /** Everything the reader needs to start: page count, size, TOC, progress and bookmarks. */
 readerRouter.get('/by-slug/:slug', async (req, res) => {
   const product = await findReadableProductBySlug(String(req.params.slug));
@@ -60,7 +63,8 @@ readerRouter.get('/by-slug/:slug', async (req, res) => {
     pageHeight: product.pageHeight ?? 842,
     toc: product.toc.map((t) => ({ title: t.title ?? '', page: t.page ?? 1 })),
     coverUrl: product.coverAssetId ? `/api/v1/reader/${product._id.toString()}/cover?v=${product.coverAssetId.toString()}` : null,
-    bookUrl: `/api/v1/reader/${product._id.toString()}/book?v=${product.pageSetId!.toString().slice(-8)}`,
+    // Names the file version and the buyer, so the browser can keep the copy (see /book below).
+    bookUrl: `/api/v1/reader/${product._id.toString()}/book?v=${bookVersion(product)}&u=${userId.toString()}`,
     readerHeader: READER_HEADER,
     progress: { page: Math.min(progress!.page, product.pageCount) || 1, percent: progress!.percent },
     bookmarks: bookmarks.map((b) => ({ id: b._id.toString(), page: b.page, label: b.label ?? '' })),
@@ -71,6 +75,11 @@ readerRouter.get('/by-slug/:slug', async (req, res) => {
  * The buyer's personal copy, watermarked with their email and order number. Re-checks the
  * entitlement on every request. Only the in-site reader can open it: it is sent as opaque
  * bytes (no inline PDF viewer, no download prompt) and requires the reader's header.
+ *
+ * Fetched from the manifest's URL, the copy may stay in that buyer's browser for 30 days, so
+ * reopening the book doesn't download it again (the reader still checks access through the
+ * manifest first). Only requests with the reader's header can use that kept copy, and CDNs
+ * never store it.
  */
 readerRouter.get('/:productId/book', bookLimiter, async (req, res) => {
   if (req.get(READER_HEADER) !== '1') {
@@ -80,8 +89,10 @@ readerRouter.get('/:productId/book', bookLimiter, async (req, res) => {
   const user = req.auth!.user;
   const access = await requireReadAccess(user._id, product);
   const key = await licensedCopyKey(product, user, await orderNumberFor(access.orderId));
+  const keep = req.query.v === bookVersion(product) && req.query.u === user._id.toString();
   res.setHeader('Content-Disposition', 'inline');
-  await sendObject(res, key, 'application/octet-stream', 'private, no-store');
+  res.vary(READER_HEADER);
+  await sendObject(res, key, 'application/octet-stream', keep ? 'private, max-age=2592000' : 'private, no-store', 'no-store');
 });
 
 readerRouter.get('/:productId/cover', async (req, res) => {

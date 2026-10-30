@@ -60,7 +60,12 @@ describe('reader access', () => {
 
     const res = await a.get(manifest.body.bookUrl).set(READER).buffer(true).parse(binary).expect(200);
     expect(res.headers['content-type']).toBe('application/octet-stream');
-    expect(res.headers['cache-control']).toContain('no-store');
+    // The manifest's URL names the file version and the buyer, so the browser may keep the copy
+    // (for the reader only); CDNs may not.
+    expect(res.headers['cache-control']).toBe('private, max-age=2592000');
+    expect(res.headers['vary']).toContain('x-readnshare-reader');
+    expect(res.headers['cdn-cache-control']).toBe('no-store');
+    expect(res.headers['content-encoding']).toBeUndefined();
     const { pages, text } = await pdfText(res.body as Buffer);
     expect(pages).toBe(4);
     expect(text).toContain('Chapter 2');
@@ -70,6 +75,8 @@ describe('reader access', () => {
     // The copy is cached: a second open returns identical bytes.
     const again = await book(a).expect(200);
     expect(Buffer.compare(again.body as Buffer, res.body as Buffer)).toBe(0);
+    // Any other URL for the book still works, but the browser must not keep that response.
+    expect(again.headers['cache-control']).toBe('private, no-store');
   });
 
   it('gives every buyer their own copy', async () => {
@@ -80,6 +87,14 @@ describe('reader access', () => {
     expect(t1).toContain('first@example.com');
     expect(t1).not.toContain('second@example.com');
     expect(t2).toContain('second@example.com');
+
+    // Each copy has its own URL, and one buyer can't get their copy kept under another's URL.
+    const url1 = (await first.get('/api/v1/reader/by-slug/reader-book')).body.bookUrl as string;
+    const url2 = (await second.get('/api/v1/reader/by-slug/reader-book')).body.bookUrl as string;
+    expect(url1).not.toBe(url2);
+    const crossed = await second.get(url1).set(READER).buffer(true).parse(binary).expect(200);
+    expect(crossed.headers['cache-control']).toBe('private, no-store');
+    expect((await pdfText(crossed.body as Buffer)).text).toContain('second@example.com');
   });
 
   it('keeps archived books readable for owners but blocks refunded ones', async () => {

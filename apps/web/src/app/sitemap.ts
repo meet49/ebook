@@ -1,10 +1,8 @@
 import type { MetadataRoute } from "next";
+import { connection } from "next/server";
 import type { ProductSummary } from "@ebook/shared";
 import { absoluteUrl } from "@/lib/seo";
 import { getCatalog, getCategories } from "@/lib/server-api";
-
-// Rebuilt at most once an hour, so newly published books appear without a redeploy.
-export const revalidate = 3600;
 
 const PAGE_SIZE = 48;
 
@@ -18,7 +16,12 @@ async function allPublishedBooks(): Promise<ProductSummary[]> {
   return books;
 }
 
+/**
+ * Built on request, never during a deploy (the API may be asleep or unreachable then). Its catalog
+ * requests are cached for 30 seconds, and newly published books appear without a redeploy.
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  await connection();
   const [books, categories] = await Promise.all([allPublishedBooks().catch(() => []), getCategories().catch(() => [])]);
   const now = new Date();
 

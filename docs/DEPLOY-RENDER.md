@@ -16,6 +16,12 @@ service, so the API does not need its own domain.
 
 > **Why not Render's free plan?** Free services sleep after inactivity (slow first load,
 > delayed webhooks) and **block outgoing email (SMTP) ports**. Use paid plans for both.
+>
+> **Free (Hobby) workspace bandwidth.** All services in the workspace share 5 GB of outbound
+> bandwidth a month. With no card on file, Render suspends every free service once it runs out,
+> until the start of the next month. See each service's **Metrics → Outbound bandwidth**, and
+> delete services you no longer use. The app keeps its own share small: JSON is compressed,
+> the website's CDN keeps covers, and each buyer's browser keeps their copy of a book.
 
 ---
 
