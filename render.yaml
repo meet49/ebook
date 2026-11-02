@@ -1,4 +1,6 @@
-# Render Blueprint for ReadnShare — two web services from this monorepo.
+# Render Blueprint for ReadnShare's API. The website runs on Vercel, which forwards /api/*
+# here, so Render runs only this service (every service in a workspace shares its free
+# bandwidth and instance hours).
 # Render dashboard → New → Blueprint → pick this repo. Values marked `sync: false`
 # are asked for during setup; never commit real secrets to this file.
 # Full walkthrough: docs/DEPLOY-RENDER.md
@@ -20,7 +22,7 @@ services:
         value: 22.22.0
       - key: NODE_ENV
         value: production
-      # Requests arrive via Render's proxy, the web service, and Render's proxy again.
+      # Requests arrive via Vercel (the website) and then Render's proxy.
       # Keep memory inside the free plan's 512 MB.
       - key: NODE_OPTIONS
         value: --max-old-space-size=400
@@ -76,30 +78,3 @@ services:
         value: "7"
       - key: MIN_PAYOUT_PAISE
         value: "50000"
-
-  # ─── Website (Next.js) ─────────────────────────────────────────────────
-  - type: web
-    name: readnshare-web
-    runtime: node
-    region: singapore
-    plan: free
-    # Render also adds www.readnshare.in and redirects between the two.
-    domains:
-      - readnshare.in
-    buildCommand: npm ci --include=dev && npm run build --workspace @ebook/web
-    startCommand: npm run start --workspace @ebook/web
-    healthCheckPath: /
-    autoDeploy: true
-    envVars:
-      - key: NODE_VERSION
-        value: 22.22.0
-      - key: NODE_ENV
-        value: production
-      # Public URL of the API service, e.g. https://readnshare-api.onrender.com
-      # (needed at BUILD time: Next.js bakes the /api rewrite into the build).
-      - key: API_URL
-        sync: false
-      - key: NEXT_PUBLIC_SITE_URL
-        value: https://readnshare.in
-      - key: NEXT_PUBLIC_SITE_NAME
-        value: ReadnShare

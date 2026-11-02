@@ -17,7 +17,9 @@ const API_URL = process.env.API_URL ?? "http://127.0.0.1:5000";
 async function coverDataUrl(path: string | null): Promise<string | null> {
   if (!path) return null;
   try {
-    const res = await fetch(`${API_URL}${path}`, { signal: AbortSignal.timeout(4000) });
+    // Cover URLs change with each upload, so a day-long cache is safe and spares the API's bandwidth
+    // when Facebook, WhatsApp and other link previews ask for the card again.
+    const res = await fetch(`${API_URL}${path}`, { next: { revalidate: 86_400 }, signal: AbortSignal.timeout(4000) });
     if (!res.ok) return null;
     const { default: sharp } = await import("sharp");
     const png = await sharp(Buffer.from(await res.arrayBuffer())).resize(340, 510, { fit: "cover" }).png().toBuffer();

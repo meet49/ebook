@@ -1,5 +1,9 @@
 # Deploying ReadnShare on Render (readnshare.in)
 
+> **Current setup:** the website runs on Vercel and only `readnshare-api` runs on Render
+> (`render.yaml` defines just the API). Skip the `readnshare-web` parts below unless you
+> move the website back to Render.
+
 You will create **two Render web services** from this repo, plus three external services
 the app needs in production.
 
